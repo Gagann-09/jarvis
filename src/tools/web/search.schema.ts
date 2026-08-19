@@ -1,0 +1,16 @@
+import { z } from "zod";
+
+export const SearchInputSchema = z.object({
+  query: z.string().trim().min(1),
+});
+
+export const SearchResultSchema = z.object({
+  title: z.string(),
+  url: z.url(),
+  snippet: z.string(),
+});
+
+export const SearchResultsSchema = z.array(SearchResultSchema);
+
+export type SearchInput = z.infer<typeof SearchInputSchema>;
+export type SearchResult = z.infer<typeof SearchResultSchema>;

@@ -18,6 +18,13 @@ export const SearchResultSchema = z.object({
       score: z.number().min(0).max(1).optional(),
     })
     .optional(),
+  provenance: z
+    .object({
+      source: z.string(),
+      url: z.url().optional(),
+      retrievedAt: z.string().datetime(),
+    })
+    .optional(),
 });
 
 export const SearchResultsSchema =

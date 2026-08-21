@@ -3,6 +3,7 @@ import type {
   Event,
   EventsSearchInput,
 } from "./events.schema.js";
+import { mockEventsProvider } from "../../providers/events/mock-events.provider.js";
 
 export const eventsCapability: ToolCapability<
   EventsSearchInput,
@@ -15,30 +16,33 @@ export const eventsCapability: ToolCapability<
   },
 
   async execute(input, _context) {
-    const event: Event = {
-      title: `AI/ML event for ${input.query}`,
-      organizer: "Mock Events Organization",
-      ...(input.location !== undefined && {
-        location: input.location,
-      }),
-      url: "https://example.com/events/mock",
-      description: "Deterministic event for contract testing.",
-      startsAt: "2026-09-15T10:00:00.000Z",
-      endsAt: "2026-09-15T16:00:00.000Z",
-      source: "mock-events-source",
-    };
+    const result = await mockEventsProvider.fetch(input);
+
+    if (!result.success || result.data === undefined) {
+      return {
+        success: false,
+        error: result.error ?? "Events provider failed.",
+        ...(result.source !== undefined && {
+          source: result.source,
+        }),
+        ...(result.freshness !== undefined && {
+          freshness: result.freshness,
+        }),
+      };
+    }
 
     return {
       success: true,
-      data: [event],
-      source: {
-        source: "mock-events-source",
-        url: event.url,
-        retrievedAt: new Date().toISOString(),
-      },
+      data: result.data,
+      ...(result.source !== undefined && {
+        source: result.source,
+      }),
+      ...(result.freshness !== undefined && {
+        freshness: result.freshness,
+      }),
       confidence: {
         score: 1,
-        reason: "Deterministic mock event data.",
+        reason: "Validated deterministic events provider result.",
       },
     };
   },

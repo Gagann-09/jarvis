@@ -3,6 +3,7 @@ import type {
   CareerOpportunity,
   CareerSearchInput,
 } from "./career.schema.js";
+import { mockCareerProvider } from "../../providers/career/mock-career.provider.js";
 
 export const careerCapability: ToolCapability<
   CareerSearchInput,
@@ -15,29 +16,33 @@ export const careerCapability: ToolCapability<
   },
 
   async execute(input, _context) {
-    const opportunity: CareerOpportunity = {
-      title: `AI/ML opportunity for ${input.query}`,
-      organization: "Mock Organization",
-      ...(input.location !== undefined && {
-        location: input.location,
-      }),
-      url: "https://example.com/careers/mock",
-      description: "Deterministic career opportunity for contract testing.",
-      source: "mock-career-source",
-      publishedAt: new Date().toISOString(),
-    };
+    const result = await mockCareerProvider.fetch(input);
+
+    if (!result.success || result.data === undefined) {
+      return {
+        success: false,
+        error: result.error ?? "Career provider failed.",
+        ...(result.source !== undefined && {
+          source: result.source,
+        }),
+        ...(result.freshness !== undefined && {
+          freshness: result.freshness,
+        }),
+      };
+    }
 
     return {
       success: true,
-      data: [opportunity],
-      source: {
-        source: "mock-career-source",
-        url: opportunity.url,
-        retrievedAt: new Date().toISOString(),
-      },
+      data: result.data,
+      ...(result.source !== undefined && {
+        source: result.source,
+      }),
+      ...(result.freshness !== undefined && {
+        freshness: result.freshness,
+      }),
       confidence: {
         score: 1,
-        reason: "Deterministic mock career data.",
+        reason: "Validated deterministic career provider result.",
       },
     };
   },

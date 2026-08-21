@@ -4,6 +4,7 @@ import type {
   SearchInput,
   SearchResult,
 } from "../../tools/web/search.schema.js";
+import { newsFreshnessService } from "../../services/news/news-freshness.service.js";
 
 export interface NewsInput {
   readonly topic: string;
@@ -65,25 +66,45 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
       return true;
     });
 
+    const newestPublishedAt = normalizedResults
+      .map((item) => item.publishedAt)
+      .filter((value): value is string => value !== undefined)
+      .sort()
+      .at(-1);
+
+    const freshness = newsFreshnessService.calculate(
+      newestPublishedAt,
+    );
+
+    const confidenceScore =
+      result.confidence?.score ?? 1;
+    
+    const combinedConfidence =
+    freshness.publishedAt === undefined
+    ? confidenceScore
+    : confidenceScore * 
+      (0.5 + (freshness.score ?? 0) * 0.5);
+
     return {
       success: true,
       data: {
         results: normalizedResults,
       },
       decision: {
-        status: "accept",
-        confidence: result.confidence ?? {
-          score: 0,
-          reason: "No confidence metadata was provided.",
+        status: combinedConfidence >= 0.5 ? "accept" : "review",
+        confidence: {
+          score: combinedConfidence,
+          reason: `Provider confidence adjusted by news freshness (${freshness.score}).`,
         },
-        reason: "News search completed successfully.",
+        reason:
+          combinedConfidence >= 0.5
+            ? "News search completed with acceptable freshness."
+            : "News search completed but freshness requires review.",
       },
       ...(result.source !== undefined && {
         source: result.source,
       }),
-      ...(result.freshness !== undefined && {
-        freshness: result.freshness,
-      }),
+      freshness,
     };
   }
 }

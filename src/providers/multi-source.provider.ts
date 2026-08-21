@@ -1,4 +1,5 @@
 import type { Provider, ProviderResult } from "../types/provider.js";
+import type { SearchResult } from "../tools/web/search.schema.js";
 
 export class MultiSourceProvider<TInput, TData>
   implements Provider<TInput, readonly TData[]>
@@ -20,35 +21,39 @@ export class MultiSourceProvider<TInput, TData>
     input: TInput,
   ): Promise<ProviderResult<readonly TData[]>> {
     const results = await Promise.all(
-      this.providers.map((provider) =>
-        provider.fetch(input),
-      ),
+      this.providers.map(async (provider) => ({
+        provider,
+        result: await provider.fetch(input),
+      })),
     );
 
     const successful = results.filter(
       (
-        result,
-      ): result is ProviderResult<readonly TData[]> & {
-        data: readonly TData[];
+        entry,
+      ): entry is {
+        provider: Provider<TInput, readonly TData[]>;
+        result: ProviderResult<readonly TData[]> & {
+          data: readonly TData[];
+        };
       } =>
-        result.success &&
-        result.data !== undefined,
+        entry.result.success &&
+        entry.result.data !== undefined,
     );
 
     if (successful.length === 0) {
       const source = results.find(
-        (result) => result.source !== undefined,
-      )?.source;
+        (entry) => entry.result.source !== undefined,
+      )?.result.source;
 
       const freshness = results.find(
-        (result) => result.freshness !== undefined,
-      )?.freshness;
+        (entry) => entry.result.freshness !== undefined,
+      )?.result.freshness;
 
       return {
         success: false,
         error:
           results
-            .map((result) => result.error)
+            .map((entry) => entry.result.error)
             .filter(
               (error): error is string =>
                 error !== undefined,
@@ -60,15 +65,34 @@ export class MultiSourceProvider<TInput, TData>
       };
     }
 
+    const data = successful.flatMap(
+      ({ provider, result }) =>
+        result.data.map((item) => {
+          const searchResult =
+            item as TData & Partial<SearchResult>;
+
+          if (
+            typeof searchResult === "object" &&
+            searchResult !== null &&
+            "url" in searchResult
+          ) {
+            return {
+              ...searchResult,
+              provenance: result.source,
+            } as TData;
+          }
+
+          return item;
+        }),
+    );
+
     const freshness = successful.find(
-      (result) => result.freshness !== undefined,
-    )?.freshness;
+      (entry) => entry.result.freshness !== undefined,
+    )?.result.freshness;
 
     return {
       success: true,
-      data: successful.flatMap(
-        (result) => result.data,
-      ),
+      data,
       source: {
         source: this.name,
         retrievedAt: new Date().toISOString(),

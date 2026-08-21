@@ -5,6 +5,7 @@ import type {
   SearchResult,
 } from "../../tools/web/search.schema.js";
 import { newsFreshnessService } from "../../services/news/news-freshness.service.js";
+import { newsReliabilityService } from "../../services/news/news-reliability.service.js";
 
 export interface NewsInput {
   readonly topic: string;
@@ -76,14 +77,18 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
       newestPublishedAt,
     );
 
-    const confidenceScore =
-      result.confidence?.score ?? 1;
-    
+    const confidenceScore = result.confidence?.score ?? 1;
+
+    const providerName = result.source?.source ?? "unknown";
+    const reliabilityScore =
+      newsReliabilityService.score(providerName);
+
     const combinedConfidence =
-    freshness.publishedAt === undefined
-    ? confidenceScore
-    : confidenceScore * 
-      (0.5 + (freshness.score ?? 0) * 0.5);
+      confidenceScore *
+      reliabilityScore *
+      (freshness.publishedAt === undefined
+        ? 1
+        : 0.5 + (freshness.score ?? 0) * 0.5);
 
     return {
       success: true,
@@ -94,12 +99,15 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
         status: combinedConfidence >= 0.5 ? "accept" : "review",
         confidence: {
           score: combinedConfidence,
-          reason: `Provider confidence adjusted by news freshness (${freshness.score}).`,
+          reason:
+            `Provider reliability (${reliabilityScore}) ` +
+            `and news freshness (${freshness.score ?? 0}) ` +
+            "adjusted the search confidence.",
         },
         reason:
           combinedConfidence >= 0.5
-            ? "News search completed with acceptable freshness."
-            : "News search completed but freshness requires review.",
+            ? "News search completed with acceptable reliability and freshness."
+            : "News search requires review due to reliability or freshness.",
       },
       ...(result.source !== undefined && {
         source: result.source,

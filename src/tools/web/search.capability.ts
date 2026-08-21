@@ -4,7 +4,14 @@ import type {
   SearchInput,
   SearchResult,
 } from "./search.schema.js";
+import { FallbackProvider } from "../../providers/fallback.provider.js";
 import { gdeltNewsProvider } from "../../providers/news/gdelt.provider.js";
+import { mockNewsProvider } from "../../providers/news/mock-news.provider.js";
+
+const newsProvider = new FallbackProvider(
+  gdeltNewsProvider,
+  mockNewsProvider,
+);
 
 export const createSearchCapability = (
   provider: Provider<SearchInput, readonly SearchResult[]>,
@@ -49,4 +56,4 @@ export const createSearchCapability = (
 });
 
 export const searchCapability =
-  createSearchCapability(gdeltNewsProvider);
+  createSearchCapability(newsProvider);

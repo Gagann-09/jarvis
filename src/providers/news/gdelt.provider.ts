@@ -54,6 +54,9 @@ export class GdeltNewsProvider
             title: article.title,
             url: article.url,
             snippet: `${article.domain} · ${article.seendate}`,
+            publishedAt: this.parseGdeltDate(
+              article.seendate,
+            ),
           }),
         ),
         source: {
@@ -76,6 +79,29 @@ export class GdeltNewsProvider
         },
       };
     }
+  }
+
+  private parseGdeltDate(
+    value: string,
+  ): string | undefined {
+    if (!/^\d{14}$/.test(value)) {
+      return undefined;
+    }
+
+    const year = value.slice(0, 4);
+    const month = value.slice(4, 6);
+    const day = value.slice(6, 8);
+    const hour = value.slice(8, 10);
+    const minute = value.slice(10, 12);
+    const second = value.slice(12, 14);
+
+    const date = new Date(
+      `${year}-${month}-${day}T${hour}:${minute}:${second}Z`,
+    );
+
+    return Number.isNaN(date.getTime())
+      ? undefined
+      : date.toISOString();
   }
 }
 

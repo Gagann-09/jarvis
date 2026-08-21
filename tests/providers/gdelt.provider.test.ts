@@ -18,6 +18,10 @@ describe("GDELT News provider", () => {
           ],
         } as TResponse;
       },
+
+      async getText(_url: string): Promise<string> {
+        return "";
+      },
     };
 
     const provider = new GdeltNewsProvider(httpClient);
@@ -33,6 +37,9 @@ describe("GDELT News provider", () => {
     );
     expect(result.data?.[0]?.url).toBe(
       "https://example.com/ai",
+    );
+    expect(result.data?.[0]?.publishedAt).toBe(
+      "2026-08-21T12:00:00.000Z",
     );
     expect(result.source?.source).toBe(
       "gdelt-news-provider",
@@ -52,6 +59,10 @@ describe("GDELT News provider", () => {
             },
           ],
         } as TResponse;
+      },
+
+      async getText(_url: string): Promise<string> {
+        return "";
       },
     };
 

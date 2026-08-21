@@ -8,6 +8,7 @@ export const SearchResultSchema = z.object({
   title: z.string(),
   url: z.url(),
   snippet: z.string(),
+  publishedAt: z.string().datetime().optional(),
 });
 
 export const SearchResultsSchema = z.array(SearchResultSchema);

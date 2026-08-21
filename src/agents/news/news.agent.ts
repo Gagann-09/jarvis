@@ -56,26 +56,14 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
 
     const seenUrls = new Set<string>();
 
-    const normalizedResults = result.data
-      .map((item) => ({
-        ...item,
-        title: item.title.trim(),
-        url: item.url.trim(),
-        snippet: item.snippet.trim(),
-      }))
-      .filter(
-        (item) =>
-          item.title.length > 0 &&
-          item.url.length > 0,
-      )
-      .filter((item) => {
-        if (seenUrls.has(item.url)) {
-          return false;
-        }
+    const normalizedResults = result.data.filter((item) => {
+      if (seenUrls.has(item.url)) {
+        return false;
+      }
 
-        seenUrls.add(item.url);
-        return true;
-      });
+      seenUrls.add(item.url);
+      return true;
+    });
 
     return {
       success: true,

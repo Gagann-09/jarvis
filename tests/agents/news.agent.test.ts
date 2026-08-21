@@ -1,19 +1,28 @@
 import { describe, expect, it } from "vitest";
-import type { Provider } from "../../src/types/provider.js";
 import { NewsAgent } from "../../src/agents/news/news.agent.js";
 import { AgentContextService } from "../../src/services/agents/agent-context.service.js";
 import { createSearchCapability } from "../../src/tools/web/search.capability.js";
-import { mockNewsProvider } from "../../src/providers/news/mock-news.provider.js";
 import type {
-  SearchInput,
   SearchResult,
 } from "../../src/tools/web/search.schema.js";
 
 describe("NewsAgent contract", () => {
   it("executes through a validated search capability", async () => {
-    const searchCapability = createSearchCapability(
-      mockNewsProvider,
-    );
+    const searchCapability = createSearchCapability({
+      name: "test-news-provider",
+      async fetch() {
+        return {
+          success: true,
+          data: [
+            {
+              title: "AI ML news",
+              url: "https://example.com/news",
+              snippet: "Test news result.",
+            },
+          ],
+        };
+      },
+    });
 
     const context = new AgentContextService({
       requestId: "news-test-001",
@@ -40,46 +49,46 @@ describe("NewsAgent contract", () => {
   });
 
   it("deduplicates results by URL while preserving order", async () => {
-    const duplicateProvider: Provider<
-      SearchInput,
-      readonly SearchResult[]
-    > = {
-      name: "duplicate-news-provider",
+    const results: readonly SearchResult[] = [
+      {
+        title: "First result",
+        url: "https://example.com/first",
+        snippet: "First",
+      },
+      {
+        title: "Duplicate first result",
+        url: "https://example.com/first",
+        snippet: "Duplicate",
+      },
+      {
+        title: "Second result",
+        url: "https://example.com/second",
+        snippet: "Second",
+      },
+    ];
 
+    const searchCapability = createSearchCapability({
+      name: "test-news-provider",
       async fetch() {
         return {
           success: true,
-          data: [
-            {
-              title: "First result",
-              url: "https://example.com/story",
-              snippet: "First",
-            },
-            {
-              title: "Duplicate result",
-              url: "https://example.com/story",
-              snippet: "Duplicate",
-            },
-            {
-              title: "Second result",
-              url: "https://example.com/second",
-              snippet: "Second",
-            },
-          ],
+          data: results,
         };
-      },
-    };
-
-    const context = new AgentContextService({
-      requestId: "news-dedupe-001",
-      permission: "read",
-      relevantMemory: [],
-      capabilities: {
-        search: createSearchCapability(duplicateProvider),
       },
     });
 
-    const result = await new NewsAgent().execute(
+    const context = new AgentContextService({
+      requestId: "news-test-002",
+      permission: "read",
+      relevantMemory: [],
+      capabilities: {
+        search: searchCapability,
+      },
+    });
+
+    const agent = new NewsAgent();
+
+    const result = await agent.execute(
       {
         topic: "AI ML news",
       },

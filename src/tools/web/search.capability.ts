@@ -38,6 +38,9 @@ export const createSearchCapability = (
         ...(result.source !== undefined && {
           source: result.source,
         }),
+        ...(result.provenance !== undefined && {
+          provenance: result.provenance,
+        }),
         ...(result.freshness !== undefined && {
           freshness: result.freshness,
         }),
@@ -49,6 +52,9 @@ export const createSearchCapability = (
       data: result.data,
       ...(result.source !== undefined && {
         source: result.source,
+      }),
+      ...(result.provenance !== undefined && {
+        provenance: result.provenance,
       }),
       ...(result.freshness !== undefined && {
         freshness: result.freshness,

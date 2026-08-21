@@ -2,6 +2,7 @@ import type { AgentContext } from "./agent-context.js";
 import type { Decision } from "./decision.js";
 import type {
   FreshnessMetadata,
+  ProvenanceMetadata,
   SourceMetadata,
 } from "./metadata.js";
 
@@ -16,6 +17,7 @@ export interface AgentResult<TOutput> {
   readonly decision: Decision;
   readonly error?: string;
   readonly source?: SourceMetadata;
+  readonly provenance?: ProvenanceMetadata;
   readonly freshness?: FreshnessMetadata;
 }
 

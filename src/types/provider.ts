@@ -1,10 +1,15 @@
-import type { FreshnessMetadata, SourceMetadata } from "./metadata.js";
+import type {
+  FreshnessMetadata,
+  ProvenanceMetadata,
+  SourceMetadata,
+} from "./metadata.js";
 
 export interface ProviderResult<TData> {
   readonly success: boolean;
   readonly data?: TData;
   readonly error?: string;
   readonly source?: SourceMetadata;
+  readonly provenance?: ProvenanceMetadata;
   readonly freshness?: FreshnessMetadata;
 }
 

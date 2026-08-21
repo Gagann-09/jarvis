@@ -16,3 +16,8 @@ export interface ConfidenceMetadata {
   readonly score: number;
   readonly reason?: string;
 }
+
+export interface ProvenanceMetadata {
+  readonly sources: readonly SourceMetadata[];
+  readonly sourceCount: number;
+}

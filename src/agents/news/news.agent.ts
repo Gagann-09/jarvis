@@ -45,6 +45,12 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
           reason: "News search did not return usable results.",
         },
         error: result.error ?? "News search failed.",
+        ...(result.source !== undefined && {
+          source: result.source,
+        }),
+        ...(result.freshness !== undefined && {
+          freshness: result.freshness,
+        }),
       };
     }
 
@@ -61,6 +67,12 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
         },
         reason: "News search completed successfully.",
       },
+      ...(result.source !== undefined && {
+        source: result.source,
+      }),
+      ...(result.freshness !== undefined && {
+        freshness: result.freshness,
+      }),
     };
   }
 }

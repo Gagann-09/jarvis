@@ -23,7 +23,7 @@ describe("NewsAgent contract", () => {
 
     const result = await agent.execute(
       {
-        query: "AI ML news",
+        topic: "AI ML news",
       },
       context,
     );
@@ -32,5 +32,11 @@ describe("NewsAgent contract", () => {
     expect(result.decision.confidence.score).toBe(1);
     expect(result.data?.results).toHaveLength(1);
     expect(result.data?.results[0]?.title).toBeDefined();
+    expect(result.source?.source).toBe("mock-news-provider");
+    expect(result.source?.url).toBe(
+      "https://example.com/news/mock",
+    );
+    expect(result.source?.retrievedAt).toBeDefined();
+  
   });
 });

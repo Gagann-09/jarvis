@@ -67,7 +67,42 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
       return true;
     });
 
-    const newestPublishedAt = normalizedResults
+    const providerName = result.source?.source ?? "unknown";
+    const reliabilityScore =
+      newsReliabilityService.score(providerName);
+
+    const rankedResults = normalizedResults
+      .map((item, index) => {
+        const freshness = newsFreshnessService.calculate(
+          item.publishedAt,
+        );
+
+        const freshnessScore =
+          item.publishedAt === undefined
+            ? 0.5
+            : freshness.score ?? 0;
+
+        const rankingScore =
+          reliabilityScore * 0.5 +
+          freshnessScore * 0.5;
+
+        return {
+          item,
+          index,
+          rankingScore,
+        };
+      })
+      .sort((a, b) => {
+        const scoreDifference =
+          b.rankingScore - a.rankingScore;
+
+        return scoreDifference !== 0
+          ? scoreDifference
+          : a.index - b.index;
+      })
+      .map(({ item }) => item);
+
+    const newestPublishedAt = rankedResults
       .map((item) => item.publishedAt)
       .filter((value): value is string => value !== undefined)
       .sort()
@@ -79,10 +114,6 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
 
     const confidenceScore = result.confidence?.score ?? 1;
 
-    const providerName = result.source?.source ?? "unknown";
-    const reliabilityScore =
-      newsReliabilityService.score(providerName);
-
     const combinedConfidence =
       confidenceScore *
       reliabilityScore *
@@ -93,7 +124,7 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
     return {
       success: true,
       data: {
-        results: normalizedResults,
+        results: rankedResults,
       },
       decision: {
         status: combinedConfidence >= 0.5 ? "accept" : "review",

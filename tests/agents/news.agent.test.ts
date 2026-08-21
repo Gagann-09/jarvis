@@ -89,4 +89,112 @@ describe("NewsAgent contract", () => {
     expect(result.data?.results[0]?.title).toBe("First result");
     expect(result.data?.results[1]?.title).toBe("Second result");
   });
+
+  it("ranks fresher results before older results", async () => {
+    const searchCapability = createSearchCapability({
+      name: "gdelt-news-provider",
+      async fetch() {
+        return {
+          success: true,
+          data: [
+            {
+              title: "Older result",
+              url: "https://example.com/old",
+              snippet: "Older",
+              publishedAt: "2026-08-18T12:00:00.000Z",
+            },
+            {
+              title: "Fresh result",
+              url: "https://example.com/fresh",
+              snippet: "Fresh",
+              publishedAt: new Date().toISOString(),
+            },
+          ],
+          source: {
+            source: "gdelt-news-provider",
+            url: "https://example.com",
+            retrievedAt: new Date().toISOString(),
+          },
+        };
+      },
+    });
+
+    const context = new AgentContextService({
+      requestId: "news-test-003",
+      permission: "read",
+      relevantMemory: [],
+      capabilities: {
+        search: searchCapability,
+      },
+    });
+
+    const agent = new NewsAgent();
+
+    const result = await agent.execute(
+      {
+        topic: "AI ML news",
+      },
+      context,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data?.results[0]?.title).toBe("Fresh result");
+    expect(result.data?.results[1]?.title).toBe("Older result");
+  });
+
+  it("preserves original order when ranking scores tie", async () => {
+    const searchCapability = createSearchCapability({
+      name: "gdelt-news-provider",
+      async fetch() {
+        return {
+          success: true,
+          data: [
+            {
+              title: "First tied result",
+              url: "https://example.com/first",
+              snippet: "First",
+              publishedAt: undefined,
+            },
+            {
+              title: "Second tied result",
+              url: "https://example.com/second",
+              snippet: "Second",
+              publishedAt: undefined,
+            },
+          ],
+          source: {
+            source: "gdelt-news-provider",
+            url: "https://example.com",
+            retrievedAt: new Date().toISOString(),
+          },
+        };
+      },
+    });
+
+    const context = new AgentContextService({
+      requestId: "news-test-004",
+      permission: "read",
+      relevantMemory: [],
+      capabilities: {
+        search: searchCapability,
+      },
+    });
+
+    const agent = new NewsAgent();
+
+    const result = await agent.execute(
+      {
+        topic: "AI ML news",
+      },
+      context,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data?.results[0]?.title).toBe(
+      "First tied result",
+    );
+    expect(result.data?.results[1]?.title).toBe(
+      "Second tied result",
+    );
+  });
 });

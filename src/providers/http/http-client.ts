@@ -14,6 +14,14 @@ export class FetchHttpClient implements HttpClient {
       );
     }
 
-    return (await response.json()) as TResponse;
+    const text = await response.text();
+
+    try {
+      return JSON.parse(text) as TResponse;
+    } catch {
+      throw new Error(
+        `Expected JSON response but received: ${text.slice(0, 200)}`,
+      );
+    }
   }
 }

@@ -6,14 +6,15 @@ import { AgentContextService } from "../../src/services/agents/agent-context.ser
 import { OrchestratorService } from "../../src/core/orchestrator/orchestrator.service.js";
 import { careerCapability } from "../../src/tools/web/career.capability.js";
 import { eventsCapability } from "../../src/tools/web/events.capability.js";
-import { searchCapability } from "../../src/tools/web/search.capability.js";
+import { createSearchCapability } from "../../src/tools/web/search.capability.js";
+import { mockNewsProvider } from "../../src/providers/news/mock-news.provider.js";
 
 const createContext = (requestId: string) =>
   new AgentContextService({
     requestId,
     permission: "read",
     capabilities: {
-      search: searchCapability,
+      search: createSearchCapability(mockNewsProvider),
       career: careerCapability,
       events: eventsCapability,
     },

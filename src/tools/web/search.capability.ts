@@ -5,6 +5,7 @@ import type {
   SearchResult,
 } from "./search.schema.js";
 import { FallbackProvider } from "../../providers/fallback.provider.js";
+import { MultiSourceProvider } from "../../providers/multi-source.provider.js";
 import { gdeltNewsProvider } from "../../providers/news/gdelt.provider.js";
 import { googleNewsProvider } from "../../providers/news/google-news.provider.js";
 import { mockNewsProvider } from "../../providers/news/mock-news.provider.js";
@@ -14,17 +15,27 @@ const googleNewsFallback = new FallbackProvider(
   mockNewsProvider,
 );
 
-const newsProvider = new FallbackProvider(
+const newsProvider = new MultiSourceProvider<
+  SearchInput,
+  SearchResult
+>([
   gdeltNewsProvider,
   googleNewsFallback,
-);
+]);
 
 export const createSearchCapability = (
-  provider: Provider<SearchInput, readonly SearchResult[]>,
-): ToolCapability<SearchInput, readonly SearchResult[]> => ({
+  provider: Provider<
+    SearchInput,
+    readonly SearchResult[]
+  >,
+): ToolCapability<
+  SearchInput,
+  readonly SearchResult[]
+> => ({
   definition: {
     name: "search",
-    description: "Searches for information using an approved provider.",
+    description:
+      "Searches for information using approved providers.",
     permission: "read",
   },
 
@@ -34,7 +45,9 @@ export const createSearchCapability = (
     if (!result.success || result.data === undefined) {
       return {
         success: false,
-        error: result.error ?? "News provider failed.",
+        error:
+          result.error ??
+          "News provider failed.",
         ...(result.source !== undefined && {
           source: result.source,
         }),
@@ -61,7 +74,8 @@ export const createSearchCapability = (
       }),
       confidence: {
         score: 1,
-        reason: "Validated news provider result.",
+        reason:
+          "Validated multi-source news result.",
       },
     };
   },

@@ -8,6 +8,8 @@ export interface FreshnessMetadata {
   readonly publishedAt?: string;
   readonly updatedAt?: string;
   readonly expiresAt?: string;
+  readonly ageMinutes?: number;
+  readonly score?: number;
 }
 
 export interface ConfidenceMetadata {

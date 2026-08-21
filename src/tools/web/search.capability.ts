@@ -1,16 +1,22 @@
-import type { ToolCapability } from "../../types/tool.js";
 import type { Provider } from "../../types/provider.js";
+import type { ToolCapability } from "../../types/tool.js";
 import type {
   SearchInput,
   SearchResult,
 } from "./search.schema.js";
 import { FallbackProvider } from "../../providers/fallback.provider.js";
 import { gdeltNewsProvider } from "../../providers/news/gdelt.provider.js";
+import { googleNewsProvider } from "../../providers/news/google-news.provider.js";
 import { mockNewsProvider } from "../../providers/news/mock-news.provider.js";
+
+const googleNewsFallback = new FallbackProvider(
+  googleNewsProvider,
+  mockNewsProvider,
+);
 
 const newsProvider = new FallbackProvider(
   gdeltNewsProvider,
-  mockNewsProvider,
+  googleNewsFallback,
 );
 
 export const createSearchCapability = (

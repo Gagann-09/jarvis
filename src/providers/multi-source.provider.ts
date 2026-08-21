@@ -1,7 +1,7 @@
 import type { Provider, ProviderResult } from "../types/provider.js";
-import type { SearchResult } from "../tools/web/search.schema.js";
+import type { ProvenanceMetadata, SourceMetadata } from "../types/metadata.js";
 
-export class MultiSourceProvider<TInput, TData>
+export class MultiSourceProvider<TInput, TData extends object>
   implements Provider<TInput, readonly TData[]>
 {
   readonly name: string;
@@ -65,26 +65,27 @@ export class MultiSourceProvider<TInput, TData>
       };
     }
 
-    const data = successful.flatMap(
-      ({ provider, result }) =>
-        result.data.map((item) => {
-          const searchResult =
-            item as TData & Partial<SearchResult>;
-
-          if (
-            typeof searchResult === "object" &&
-            searchResult !== null &&
-            "url" in searchResult
-          ) {
-            return {
-              ...searchResult,
-              provenance: result.source,
-            } as TData;
-          }
-
-          return item;
-        }),
+    const data = successful.flatMap(({ result }) =>
+      result.data.map(
+        (item) =>
+          ({
+            ...item,
+            provenance: result.source,
+          }) as TData,
+      ),
     );
+
+    const sources: SourceMetadata[] = successful
+      .map((entry) => entry.result.source)
+      .filter(
+        (source): source is SourceMetadata =>
+          source !== undefined,
+      );
+
+    const provenance: ProvenanceMetadata = {
+      sources,
+      sourceCount: sources.length,
+    };
 
     const freshness = successful.find(
       (entry) => entry.result.freshness !== undefined,
@@ -93,6 +94,7 @@ export class MultiSourceProvider<TInput, TData>
     return {
       success: true,
       data,
+      provenance,
       source: {
         source: this.name,
         retrievedAt: new Date().toISOString(),
@@ -104,7 +106,7 @@ export class MultiSourceProvider<TInput, TData>
 
 export const createMultiSourceProvider = <
   TInput,
-  TData,
+  TData extends object,
 >(
   providers: readonly Provider<
     TInput,

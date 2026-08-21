@@ -18,7 +18,8 @@ export interface NewsOutput {
 export class NewsAgent implements Agent<NewsInput, NewsOutput> {
   readonly definition = {
     name: "news",
-    description: "Finds read-only news information for a requested topic.",
+    description:
+      "Finds read-only news information for a requested topic.",
   };
 
   async execute(
@@ -42,9 +43,11 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
           status: "review",
           confidence: result.confidence ?? {
             score: 0,
-            reason: "The search tool did not provide usable results.",
+            reason:
+              "The search tool did not provide usable results.",
           },
-          reason: "News search did not return usable results.",
+          reason:
+            "News search did not return usable results.",
         },
         error: result.error ?? "News search failed.",
         ...(result.source !== undefined && {
@@ -67,10 +70,6 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
       return true;
     });
 
-    const providerName = result.source?.source ?? "unknown";
-    const reliabilityScore =
-      newsReliabilityService.score(providerName);
-
     const rankedResults = normalizedResults
       .map((item, index) => {
         const freshness = newsFreshnessService.calculate(
@@ -81,6 +80,14 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
           item.publishedAt === undefined
             ? 0.5
             : freshness.score ?? 0;
+
+        const providerName =
+          item.provenance?.source ??
+          result.source?.source ??
+          "unknown";
+
+        const reliabilityScore =
+          newsReliabilityService.score(providerName);
 
         const rankingScore =
           reliabilityScore * 0.5 +
@@ -104,7 +111,10 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
 
     const newestPublishedAt = rankedResults
       .map((item) => item.publishedAt)
-      .filter((value): value is string => value !== undefined)
+      .filter(
+        (value): value is string =>
+          value !== undefined,
+      )
       .sort()
       .at(-1);
 
@@ -112,14 +122,43 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
       newestPublishedAt,
     );
 
-    const confidenceScore = result.confidence?.score ?? 1;
+    const confidenceScore =
+      result.confidence?.score ?? 1;
+
+    const providerNames = [
+      ...new Set(
+        rankedResults
+          .map((item) => item.provenance?.source)
+          .filter(
+            (value): value is string =>
+              value !== undefined,
+          ),
+      ),
+    ];
+
+    const aggregateReliability =
+      providerNames.length === 0
+        ? newsReliabilityService.score(
+            result.source?.source ?? "unknown",
+          )
+        : providerNames.reduce(
+            (total, providerName) =>
+              total +
+              newsReliabilityService.score(
+                providerName,
+              ),
+            0,
+          ) / providerNames.length;
+
+    const freshnessMultiplier =
+      freshness.publishedAt === undefined
+        ? 1
+        : 0.5 + (freshness.score ?? 0) * 0.5;
 
     const combinedConfidence =
       confidenceScore *
-      reliabilityScore *
-      (freshness.publishedAt === undefined
-        ? 1
-        : 0.5 + (freshness.score ?? 0) * 0.5);
+      aggregateReliability *
+      freshnessMultiplier;
 
     return {
       success: true,
@@ -127,11 +166,14 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
         results: rankedResults,
       },
       decision: {
-        status: combinedConfidence >= 0.5 ? "accept" : "review",
+        status:
+          combinedConfidence >= 0.5
+            ? "accept"
+            : "review",
         confidence: {
           score: combinedConfidence,
           reason:
-            `Provider reliability (${reliabilityScore}) ` +
+            `Average provider reliability (${aggregateReliability}) ` +
             `and news freshness (${freshness.score ?? 0}) ` +
             "adjusted the search confidence.",
         },

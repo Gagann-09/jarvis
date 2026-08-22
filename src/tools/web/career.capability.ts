@@ -4,6 +4,13 @@ import type {
   CareerSearchInput,
 } from "./career.schema.js";
 import { mockCareerProvider } from "../../providers/career/mock-career.provider.js";
+import { adzunaCareerProvider } from "../../providers/career/adzuna-career.provider.js";
+import { FallbackProvider } from "../../providers/fallback.provider.js";
+
+const careerProvider = new FallbackProvider(
+  adzunaCareerProvider,
+  mockCareerProvider,
+);
 
 export const careerCapability: ToolCapability<
   CareerSearchInput,
@@ -23,7 +30,7 @@ export const careerCapability: ToolCapability<
       };
     }
 
-    const result = await mockCareerProvider.fetch(input);
+    const result = await careerProvider.fetch(input);
 
     if (!result.success || result.data === undefined) {
       return {

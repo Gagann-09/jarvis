@@ -8,6 +8,7 @@ import { careerCapability } from "../../src/tools/web/career.capability.js";
 import { eventsCapability } from "../../src/tools/web/events.capability.js";
 import { createSearchCapability } from "../../src/tools/web/search.capability.js";
 import { mockNewsProvider } from "../../src/providers/news/mock-news.provider.js";
+import type { Agent } from "../../src/types/agent.js";
 
 const createContext = (requestId: string) =>
   new AgentContextService({
@@ -99,7 +100,7 @@ describe("Orchestrator contract", () => {
   it("returns a controlled result when an agent throws an exception", async () => {
     const orchestrator = new OrchestratorService();
 
-    const throwingAgent: any = {
+    const throwingAgent: Agent<unknown, unknown> = {
       definition: { name: "throwing", description: "Throws an error" },
       execute: async () => {
         throw new Error("Unexpected error");

@@ -4,6 +4,13 @@ import type {
   EventsSearchInput,
 } from "./events.schema.js";
 import { mockEventsProvider } from "../../providers/events/mock-events.provider.js";
+import { MeetupEventsProvider } from "../../providers/events/meetup-events.provider.js";
+import { FallbackProvider } from "../../providers/fallback.provider.js";
+import { FetchHttpClient } from "../../providers/http/http-client.js";
+
+const httpClient = new FetchHttpClient();
+const meetupEventsProvider = new MeetupEventsProvider(httpClient);
+const fallbackEventsProvider = new FallbackProvider(meetupEventsProvider, mockEventsProvider);
 
 export const eventsCapability: ToolCapability<
   EventsSearchInput,
@@ -23,7 +30,7 @@ export const eventsCapability: ToolCapability<
       };
     }
 
-    const result = await mockEventsProvider.fetch(input);
+    const result = await fallbackEventsProvider.fetch(input);
 
     if (!result.success || result.data === undefined) {
       return {

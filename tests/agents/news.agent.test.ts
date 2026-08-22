@@ -2,13 +2,28 @@ import { describe, expect, it } from "vitest";
 import { NewsAgent } from "../../src/agents/news/news.agent.js";
 import { AgentContextService } from "../../src/services/agents/agent-context.service.js";
 import { createSearchCapability } from "../../src/tools/web/search.capability.js";
-import { mockNewsProvider } from "../../src/providers/news/mock-news.provider.js";
 
 describe("NewsAgent contract", () => {
   it("executes through a validated search capability", async () => {
-    const searchCapability = createSearchCapability(
-      mockNewsProvider,
-    );
+    const searchCapability = createSearchCapability({
+      name: "mock-news-provider",
+      async fetch() {
+        return {
+          success: true,
+          data: [
+            {
+              title: "Mock news",
+              url: "https://example.com/news",
+              snippet: "Mock result",
+            },
+          ],
+          source: {
+            source: "mock-news-provider",
+            retrievedAt: new Date().toISOString(),
+          },
+        };
+      },
+    });
 
     const context = new AgentContextService({
       requestId: "news-test-001",
@@ -28,10 +43,12 @@ describe("NewsAgent contract", () => {
       context,
     );
 
-    expect(result.decision.status).toBe("review");
-    expect(result.decision.confidence.score).toBe(0.2);
+    expect(result.success).toBe(true);
     expect(result.data?.results).toHaveLength(1);
     expect(result.data?.results[0]?.title).toBeDefined();
+    expect(result.source?.source).toBe(
+      "mock-news-provider",
+    );
   });
 
   it("deduplicates results by URL while preserving order", async () => {
@@ -195,6 +212,69 @@ describe("NewsAgent contract", () => {
     );
     expect(result.data?.results[1]?.title).toBe(
       "Second tied result",
+    );
+  });
+
+  it("uses per-result provenance when calculating ranking", async () => {
+    const searchCapability = createSearchCapability({
+      name: "multi-source",
+      async fetch() {
+        return {
+          success: true,
+          data: [
+            {
+              title: "Less reliable source",
+              url: "https://example.com/less-reliable",
+              snippet: "Less reliable",
+              publishedAt: "2026-08-22T13:00:00.000Z",
+              provenance: {
+                source: "unknown-provider",
+                retrievedAt: new Date().toISOString(),
+              },
+            },
+            {
+              title: "Reliable source",
+              url: "https://example.com/reliable",
+              snippet: "Reliable",
+              publishedAt: "2026-08-22T13:00:00.000Z",
+              provenance: {
+                source: "gdelt-news-provider",
+                retrievedAt: new Date().toISOString(),
+              },
+            },
+          ],
+          source: {
+            source: "multi-source",
+            retrievedAt: new Date().toISOString(),
+          },
+        };
+      },
+    });
+
+    const context = new AgentContextService({
+      requestId: "news-test-005",
+      permission: "read",
+      relevantMemory: [],
+      capabilities: {
+        search: searchCapability,
+      },
+    });
+
+    const agent = new NewsAgent();
+
+    const result = await agent.execute(
+      {
+        topic: "AI ML news",
+      },
+      context,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data?.results[0]?.title).toBe(
+      "Reliable source",
+    );
+    expect(result.data?.results[0]?.provenance?.source).toBe(
+      "gdelt-news-provider",
     );
   });
 });

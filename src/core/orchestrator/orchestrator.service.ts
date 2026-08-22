@@ -33,15 +33,24 @@ export class OrchestratorService implements Orchestrator {
       };
     }
 
-    const result = await agent.execute(request.input, context);
+    try {
+      const result = await agent.execute(request.input, context);
 
-    return {
-      agentName: request.agentName,
-      success: result.success,
-      result,
-      ...(result.error !== undefined && {
-        error: result.error,
-      }),
-    };
+      return {
+        agentName: request.agentName,
+        success: result.success,
+        result,
+        ...(result.error !== undefined && {
+          error: result.error,
+        }),
+      };
+    } catch (error) {
+      return {
+        agentName: request.agentName,
+        success: false,
+        result: null,
+        error: "Agent execution failed.",
+      };
+    }
   }
 }

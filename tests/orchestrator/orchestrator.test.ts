@@ -95,4 +95,30 @@ describe("Orchestrator contract", () => {
     expect(result.success).toBe(false);
     expect(result.error).toBe("Agent not found.");
   });
+
+  it("returns a controlled result when an agent throws an exception", async () => {
+    const orchestrator = new OrchestratorService();
+
+    const throwingAgent: any = {
+      definition: { name: "throwing", description: "Throws an error" },
+      execute: async () => {
+        throw new Error("Unexpected error");
+      },
+    };
+
+    orchestrator.registerAgent(throwingAgent);
+
+    const result = await orchestrator.execute(
+      {
+        agentName: "throwing",
+        input: {},
+      },
+      createContext("orchestrator-throwing-001"),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.agentName).toBe("throwing");
+    expect(result.result).toBeNull();
+    expect(result.error).toBe("Agent execution failed.");
+  });
 });

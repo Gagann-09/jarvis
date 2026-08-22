@@ -45,4 +45,30 @@ describe("EventsAgent contract", () => {
     expect(result.decision.status).toBe("accept");
     expect(result.decision.confidence.score).toBe(1);
   });
+
+  it("translates capability permission failures into controlled AgentResult failures", async () => {
+    const context = new AgentContextService({
+      requestId: "events-agent-test-002",
+      permission: "execute",
+      capabilities: {
+        search: searchCapability,
+        career: careerCapability,
+        events: eventsCapability,
+      },
+    });
+
+    const agent = new EventsAgent();
+
+    const result = await agent.execute(
+      {
+        query: "AI ML CSE events",
+        location: "Bangalore",
+      },
+      context,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
+    expect(result.decision?.status).toBe("review");
+  });
 });

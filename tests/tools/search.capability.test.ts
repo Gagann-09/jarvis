@@ -60,7 +60,7 @@ describe("Search capability fallback", () => {
 
     const result = await capability.execute(
       { query: "AI India" },
-      {} as never,
+      { permission: "read", requestId: "test" } as never,
     );
 
     expect(result.success).toBe(true);
@@ -69,5 +69,39 @@ describe("Search capability fallback", () => {
       "Fallback result for AI India",
     );
     expect(result.source?.source).toBe("test-fallback");
+  });
+
+  it("rejects prepare context with a controlled failure", async () => {
+    const capability = createSearchCapability({
+      name: "test-provider",
+      async fetch() {
+        return { success: true, data: [] };
+      },
+    });
+
+    const result = await capability.execute(
+      { query: "test" },
+      { requestId: "search-test-prepare", permission: "prepare" } as never,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
+  });
+
+  it("rejects execute context with a controlled failure", async () => {
+    const capability = createSearchCapability({
+      name: "test-provider",
+      async fetch() {
+        return { success: true, data: [] };
+      },
+    });
+
+    const result = await capability.execute(
+      { query: "test" },
+      { requestId: "search-test-execute", permission: "execute" } as never,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
   });
 });

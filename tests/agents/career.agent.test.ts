@@ -44,4 +44,30 @@ describe("CareerAgent contract", () => {
     expect(result.decision.status).toBe("accept");
     expect(result.decision.confidence.score).toBe(1);
   });
+
+  it("translates capability permission failures into controlled AgentResult failures", async () => {
+    const context = new AgentContextService({
+      requestId: "career-agent-test-002",
+      permission: "execute",
+      capabilities: {
+        search: searchCapability,
+        career: careerCapability,
+      },
+    });
+
+    const agent = new CareerAgent();
+
+    const result = await agent.execute(
+      {
+        query: "AI ML internship",
+        location: "Bangalore",
+        remote: false,
+      },
+      context,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
+    expect(result.decision?.status).toBe("review");
+  });
 });

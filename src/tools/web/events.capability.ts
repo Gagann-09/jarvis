@@ -15,7 +15,14 @@ export const eventsCapability: ToolCapability<
     permission: "read",
   },
 
-  async execute(input, _context) {
+  async execute(input, context) {
+    if (context.permission !== "read") {
+      return {
+        success: false,
+        error: `Permission denied: Tool events_search requires read permission, but ${context.permission} was provided.`,
+      };
+    }
+
     const result = await mockEventsProvider.fetch(input);
 
     if (!result.success || result.data === undefined) {

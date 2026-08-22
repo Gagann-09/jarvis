@@ -42,4 +42,34 @@ describe("Events capability contract", () => {
 
     expect(result.confidence?.score).toBe(1);
   });
+
+  it("rejects prepare context with a controlled failure", async () => {
+    const input = EventsSearchInputSchema.parse({
+      query: "AI ML CSE events",
+      location: "Bangalore",
+    });
+
+    const result = await eventsCapability.execute(input, {
+      requestId: "events-test-prepare",
+      permission: "prepare",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
+  });
+
+  it("rejects execute context with a controlled failure", async () => {
+    const input = EventsSearchInputSchema.parse({
+      query: "AI ML CSE events",
+      location: "Bangalore",
+    });
+
+    const result = await eventsCapability.execute(input, {
+      requestId: "events-test-execute",
+      permission: "execute",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
+  });
 });

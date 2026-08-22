@@ -277,4 +277,35 @@ describe("NewsAgent contract", () => {
       "gdelt-news-provider",
     );
   });
+
+  it("translates capability permission failures into controlled AgentResult failures", async () => {
+    const searchCapability = createSearchCapability({
+      name: "multi-source",
+      async fetch() {
+        return { success: true, data: [] };
+      },
+    });
+
+    const context = new AgentContextService({
+      requestId: "news-test-006",
+      permission: "prepare",
+      relevantMemory: [],
+      capabilities: {
+        search: searchCapability,
+      },
+    });
+
+    const agent = new NewsAgent();
+
+    const result = await agent.execute(
+      {
+        topic: "AI ML news",
+      },
+      context,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
+    expect(result.decision?.status).toBe("review");
+  });
 });

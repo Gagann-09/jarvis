@@ -28,4 +28,34 @@ describe("Career capability contract", () => {
     expect(result.source?.source).toBe("mock-career-source");
     expect(result.confidence?.score).toBe(1);
   });
+
+  it("rejects prepare context with a controlled failure", async () => {
+    const input = CareerSearchInputSchema.parse({
+      query: "AI ML internship",
+      location: "Bangalore",
+    });
+
+    const result = await careerCapability.execute(input, {
+      requestId: "career-test-prepare",
+      permission: "prepare",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
+  });
+
+  it("rejects execute context with a controlled failure", async () => {
+    const input = CareerSearchInputSchema.parse({
+      query: "AI ML internship",
+      location: "Bangalore",
+    });
+
+    const result = await careerCapability.execute(input, {
+      requestId: "career-test-execute",
+      permission: "execute",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Permission denied");
+  });
 });

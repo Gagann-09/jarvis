@@ -1,4 +1,4 @@
-import type { Provider } from "../../types/provider.js";
+import type { Provider, ProviderResult } from "../../types/provider.js";
 import type {
   SearchInput,
   SearchResult,
@@ -17,7 +17,7 @@ export class GoogleNewsProvider
     private readonly httpClient = new FetchHttpClient(),
   ) {}
 
-  async fetch(input: SearchInput) {
+  async fetch(input: SearchInput): Promise<ProviderResult<readonly SearchResult[]>> {
     const url = new URL(GOOGLE_NEWS_ENDPOINT);
 
     url.searchParams.set("q", input.query);

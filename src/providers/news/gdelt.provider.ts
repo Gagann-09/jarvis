@@ -1,4 +1,4 @@
-import type { Provider } from "../../types/provider.js";
+import type { Provider, ProviderResult } from "../../types/provider.js";
 import type {
   SearchInput,
   SearchResult,
@@ -20,7 +20,7 @@ export class GdeltNewsProvider
     private readonly httpClient = new FetchHttpClient(),
   ) {}
 
-  async fetch(input: SearchInput) {
+  async fetch(input: SearchInput): Promise<ProviderResult<readonly SearchResult[]>> {
     const url = new URL(GDELT_ENDPOINT);
 
     url.searchParams.set("query", input.query);

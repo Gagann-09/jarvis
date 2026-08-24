@@ -1,4 +1,4 @@
-import type { Provider } from "../../types/provider.js";
+import type { Provider, ProviderResult } from "../../types/provider.js";
 import type {
   SearchInput,
   SearchResult,
@@ -10,7 +10,9 @@ export const mockNewsProvider: Provider<
 > = {
   name: "mock-news-provider",
 
-  async fetch(input) {
+  async fetch(
+    input: SearchInput,
+  ): Promise<ProviderResult<readonly SearchResult[]>> {
     return {
       success: true,
       data: [

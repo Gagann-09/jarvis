@@ -1,4 +1,4 @@
-import type { Provider } from "../../types/provider.js";
+import type { Provider, ProviderResult } from "../../types/provider.js";
 import type {
   CareerOpportunity,
   CareerSearchInput,
@@ -10,7 +10,9 @@ export const mockCareerProvider: Provider<
 > = {
   name: "mock-career-provider",
 
-  async fetch(input) {
+  async fetch(
+    input: CareerSearchInput,
+  ): Promise<ProviderResult<readonly CareerOpportunity[]>> {
     const opportunity: CareerOpportunity = {
       title: `Career opportunity for ${input.query}`,
       organization: "Mock Organization",

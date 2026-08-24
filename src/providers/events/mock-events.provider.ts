@@ -1,4 +1,4 @@
-import type { Provider } from "../../types/provider.js";
+import type { Provider, ProviderResult } from "../../types/provider.js";
 import type {
   Event,
   EventsSearchInput,
@@ -10,7 +10,7 @@ export const mockEventsProvider: Provider<
 > = {
   name: "mock-events-provider",
 
-  async fetch(input) {
+  async fetch(input: EventsSearchInput): Promise<ProviderResult<readonly Event[]>> {
     const event: Event = {
       title: `Event for ${input.query}`,
       organizer: "Mock Events Organization",

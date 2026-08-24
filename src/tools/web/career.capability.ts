@@ -39,6 +39,9 @@ export const careerCapability: ToolCapability<
         ...(result.source !== undefined && {
           source: result.source,
         }),
+        ...(result.provenance !== undefined && {
+          provenance: result.provenance,
+        }),
         ...(result.freshness !== undefined && {
           freshness: result.freshness,
         }),
@@ -50,6 +53,9 @@ export const careerCapability: ToolCapability<
       data: result.data,
       ...(result.source !== undefined && {
         source: result.source,
+      }),
+      ...(result.provenance !== undefined && {
+        provenance: result.provenance,
       }),
       ...(result.freshness !== undefined && {
         freshness: result.freshness,

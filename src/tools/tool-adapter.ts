@@ -36,7 +36,8 @@ export const createToolCapability = <TInput, TOutput>(
         error: "Tool permission mismatch.",
         confidence: {
           score: 0,
-          reason: "Execution permission does not match the tool requirement.",
+          reason:
+            "Execution permission does not match the tool requirement.",
         },
       };
     }
@@ -61,7 +62,8 @@ export const createToolCapability = <TInput, TOutput>(
         }),
         confidence: {
           score: 0,
-          reason: "Tool output did not satisfy its declared schema.",
+          reason:
+            "Tool output did not satisfy its declared schema.",
         },
       };
     }

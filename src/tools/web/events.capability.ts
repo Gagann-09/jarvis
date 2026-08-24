@@ -10,7 +10,11 @@ import { FetchHttpClient } from "../../providers/http/http-client.js";
 
 const httpClient = new FetchHttpClient();
 const meetupEventsProvider = new MeetupEventsProvider(httpClient);
-const fallbackEventsProvider = new FallbackProvider(meetupEventsProvider, mockEventsProvider);
+
+const fallbackEventsProvider = new FallbackProvider(
+  meetupEventsProvider,
+  mockEventsProvider,
+);
 
 export const eventsCapability: ToolCapability<
   EventsSearchInput,
@@ -39,6 +43,9 @@ export const eventsCapability: ToolCapability<
         ...(result.source !== undefined && {
           source: result.source,
         }),
+        ...(result.provenance !== undefined && {
+          provenance: result.provenance,
+        }),
         ...(result.freshness !== undefined && {
           freshness: result.freshness,
         }),
@@ -50,6 +57,9 @@ export const eventsCapability: ToolCapability<
       data: result.data,
       ...(result.source !== undefined && {
         source: result.source,
+      }),
+      ...(result.provenance !== undefined && {
+        provenance: result.provenance,
       }),
       ...(result.freshness !== undefined && {
         freshness: result.freshness,

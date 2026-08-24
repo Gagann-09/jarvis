@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { randomUUID } from "node:crypto";
 import { createRuntime } from "../core/runtime/runtime.js";
 import { AgentRequestSchema } from "./agent.schema.js";
 
@@ -27,17 +28,17 @@ export const executeAgent = async (
   const agentName = body.agentName;
   const input = body.input ?? {};
 
-  if (
-    agentName === "news" ||
-    agentName === "career" ||
-    agentName === "events"
-  ) {
-    const parsed = AgentRequestSchema.safeParse({
-      agentName,
-      input,
-    });
+  const parsed = AgentRequestSchema.safeParse({
+    agentName,
+    input,
+  });
 
-    if (!parsed.success) {
+  if (!parsed.success) {
+    if (
+      agentName === "news" ||
+      agentName === "career" ||
+      agentName === "events"
+    ) {
       res.status(400).json({
         success: false,
         error: "Invalid agent request.",
@@ -53,7 +54,7 @@ export const executeAgent = async (
         agentName,
         input,
       },
-      runtime.createContext(`http-${Date.now()}`),
+      runtime.createContext(`http-${randomUUID()}`),
     );
 
     res

@@ -147,16 +147,131 @@ afterAll(
 // ── tests ────────────────────────────────────────────────────────
 
 describe("POST /agents/execute", () => {
-  it("returns 200 for a valid news request", async () => {
-    const res = await http("POST", "/agents/execute", {
-      agentName: "news",
-      input: { topic: "AI" },
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.agentName).toBe("news");
+  it("returns 200 for a valid career request", async () => {
+  const res = await http("POST", "/agents/execute", {
+    agentName: "career",
+    input: {
+      query: "AI ML internship",
+      location: "Bangalore",
+      remote: false,
+    },
   });
+
+  expect(res.status).toBe(200);
+  expect(res.body.success).toBe(true);
+  expect(res.body.agentName).toBe("career");
+});
+
+it("returns 200 for a valid events request", async () => {
+  const res = await http("POST", "/agents/execute", {
+    agentName: "events",
+    input: {
+      query: "AI ML CSE events",
+      location: "Bangalore",
+    },
+  });
+
+  expect(res.status).toBe(200);
+  expect(res.body.success).toBe(true);
+  expect(res.body.agentName).toBe("events");
+});
+
+it("returns 400 for invalid career input", async () => {
+  const res = await http("POST", "/agents/execute", {
+    agentName: "career",
+    input: {
+      query: "",
+      location: "Bangalore",
+    },
+  });
+
+  expect(res.status).toBe(400);
+  expect(res.body.success).toBe(false);
+  expect(res.body.error).toBe("Invalid agent request.");
+});
+
+it("returns 400 for invalid events input", async () => {
+  const res = await http("POST", "/agents/execute", {
+    agentName: "events",
+    input: {
+      query: "",
+      location: "Bangalore",
+    },
+  });
+
+  expect(res.status).toBe(400);
+  expect(res.body.success).toBe(false);
+  expect(res.body.error).toBe("Invalid agent request.");
+});
+
+it("returns 400 for an empty agentName", async () => {
+  const res = await http("POST", "/agents/execute", {
+    agentName: "",
+    input: {},
+  });
+
+  expect(res.status).toBe(400);
+  expect(res.body.success).toBe(false);
+  expect(res.body.error).toBe("agentName is required.");
+});
+
+it("returns 400 for a whitespace agentName", async () => {
+  const res = await http("POST", "/agents/execute", {
+    agentName: "   ",
+    input: {},
+  });
+
+  expect(res.status).toBe(400);
+  expect(res.body.success).toBe(false);
+  expect(res.body.error).toBe("agentName is required.");
+});
+
+it("returns 400 for a missing request body", async () => {
+  const res = await http("POST", "/agents/execute");
+
+  expect(res.status).toBe(400);
+});
+
+it("returns 400 for invalid JSON", async () => {
+  const res = await new Promise<HttpResult>((resolve, reject) => {
+    const url = new URL("/agents/execute", baseUrl);
+
+    const req = request(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => {
+          try {
+            resolve({
+              status: response.statusCode ?? 500,
+              body: JSON.parse(
+                Buffer.concat(chunks).toString(),
+              ) as Record<string, unknown>,
+            });
+          } catch {
+            reject(new Error("Non-JSON response"));
+          }
+        });
+      },
+    );
+
+    req.on("error", reject);
+    req.write("{invalid-json");
+    req.end();
+  });
+
+  expect(res.status).toBe(400);
+});
 
   it("returns 400 when agentName is missing", async () => {
     const res = await http("POST", "/agents/execute", {

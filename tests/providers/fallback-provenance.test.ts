@@ -58,6 +58,16 @@ const failureProviderWithSource = (
         url: `https://${name}.example.com`,
         retrievedAt: FIXED_TIME,
       },
+      provenance: {
+        sources: [
+          {
+            source: name,
+            url: `https://${name}.example.com`,
+            retrievedAt: FIXED_TIME,
+          },
+        ],
+        sourceCount: 1,
+      },
     };
   },
 });
@@ -91,7 +101,7 @@ describe("FallbackProvider provenance", () => {
     expect(result.source?.retrievedAt).toBe(FIXED_TIME);
   });
 
-  it("successful primary preserves primary provenance metadata", async () => {
+  it("successful primary preserves only primary provenance", async () => {
     const provider = new FallbackProvider(
       successProviderWithSource("primary-api", ["primary"]),
       successProviderWithSource("fallback-api", ["fallback"]),
@@ -104,7 +114,7 @@ describe("FallbackProvider provenance", () => {
     expect(result.provenance?.sources[0]?.source).toBe("primary-api");
   });
 
-  it("fallback result exposes the fallback provider source metadata", async () => {
+  it("fallback result preserves fallback source metadata", async () => {
     const provider = new FallbackProvider(
       failureProviderWithSource("primary-api", "Primary down."),
       successProviderWithSource("fallback-api", ["fallback"]),
@@ -114,7 +124,6 @@ describe("FallbackProvider provenance", () => {
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual(["fallback"]);
-
     expect(result.source?.source).toBe("fallback-api");
     expect(result.source?.url).toBe(
       "https://fallback-api.example.com",
@@ -122,7 +131,7 @@ describe("FallbackProvider provenance", () => {
     expect(result.source?.retrievedAt).toBe(FIXED_TIME);
   });
 
-  it("fallback result preserves freshness from the actual provider", async () => {
+  it("fallback result preserves successful fallback freshness", async () => {
     const provider = new FallbackProvider(
       failureProviderWithSource("primary-api", "Primary down."),
       successProviderWithSource("fallback-api", ["fallback"]),
@@ -131,12 +140,11 @@ describe("FallbackProvider provenance", () => {
     const result = await provider.fetch("test");
 
     expect(result.success).toBe(true);
-    expect(result.freshness).toBeDefined();
     expect(result.freshness?.publishedAt).toBe(FIXED_TIME);
     expect(result.freshness?.score).toBe(1);
   });
 
-  it("fallback result preserves provenance from the actual provider", async () => {
+  it("fallback success records both attempted providers", async () => {
     const provider = new FallbackProvider(
       failureProviderWithSource("primary-api", "Primary down."),
       successProviderWithSource("fallback-api", ["fallback"]),
@@ -145,11 +153,14 @@ describe("FallbackProvider provenance", () => {
     const result = await provider.fetch("test");
 
     expect(result.success).toBe(true);
-    expect(result.provenance?.sourceCount).toBe(1);
-    expect(result.provenance?.sources[0]?.source).toBe("fallback-api");
+    expect(result.provenance?.sourceCount).toBe(2);
+    expect(result.provenance?.sources.map((source) => source.source)).toEqual([
+      "primary-api",
+      "fallback-api",
+    ]);
   });
 
-  it("both-failed result preserves source from the fallback provider", async () => {
+  it("both-failed result preserves both provider provenance", async () => {
     const provider = new FallbackProvider(
       failureProviderWithSource("primary-api", "Primary down."),
       failureProviderWithSource("fallback-api", "Fallback down."),
@@ -159,6 +170,11 @@ describe("FallbackProvider provenance", () => {
 
     expect(result.success).toBe(false);
     expect(result.source?.source).toBe("fallback-api");
+    expect(result.provenance?.sourceCount).toBe(2);
+    expect(result.provenance?.sources.map((source) => source.source)).toEqual([
+      "primary-api",
+      "fallback-api",
+    ]);
   });
 
   it("both-failed result falls back to primary source when fallback has none", async () => {
@@ -182,6 +198,8 @@ describe("FallbackProvider provenance", () => {
 
     expect(result.success).toBe(false);
     expect(result.source?.source).toBe("primary-api");
+    expect(result.provenance?.sourceCount).toBe(1);
+    expect(result.provenance?.sources[0]?.source).toBe("primary-api");
   });
 
   it("falls back when the primary provider throws", async () => {
@@ -195,9 +213,10 @@ describe("FallbackProvider provenance", () => {
     expect(result.success).toBe(true);
     expect(result.data).toEqual(["fallback"]);
     expect(result.source?.source).toBe("fallback-api");
+    expect(result.provenance?.sourceCount).toBe(1);
   });
 
-  it("returns a controlled failure when both providers throw", async () => {
+  it("returns controlled failure when both providers throw", async () => {
     const provider = new FallbackProvider(
       throwingProvider("primary-api", "Primary exploded."),
       throwingProvider("fallback-api", "Fallback exploded."),
@@ -208,6 +227,7 @@ describe("FallbackProvider provenance", () => {
     expect(result.success).toBe(false);
     expect(result.data).toBeUndefined();
     expect(result.error).toBe("Fallback exploded.");
+    expect(result.provenance).toBeUndefined();
   });
 
   it("preserves fallback metadata when primary throws", async () => {

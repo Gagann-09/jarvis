@@ -1,3 +1,4 @@
+import type { ProvenanceMetadata } from "../types/metadata.js";
 import type {
   Provider,
   ProviderResult,
@@ -37,8 +38,21 @@ export class FallbackProvider<TInput, TOutput>
       const fallbackResult = await this.fallback.fetch(input);
 
       if (fallbackResult.success) {
-        return fallbackResult;
+        const provenance = this.buildAttemptedProvenance(
+          primaryResult?.provenance,
+          fallbackResult.provenance,
+        );
+
+        return {
+          ...fallbackResult,
+          ...(provenance !== undefined ? { provenance } : {}),
+        };
       }
+
+      const provenance = this.buildAttemptedProvenance(
+        primaryResult?.provenance,
+        fallbackResult.provenance,
+      );
 
       return {
         success: false,
@@ -56,13 +70,14 @@ export class FallbackProvider<TInput, TOutput>
           : primaryResult?.freshness !== undefined
             ? { freshness: primaryResult.freshness }
             : {}),
-        ...(fallbackResult.provenance !== undefined
-          ? { provenance: fallbackResult.provenance }
-          : primaryResult?.provenance !== undefined
-            ? { provenance: primaryResult.provenance }
-            : {}),
+        ...(provenance !== undefined ? { provenance } : {}),
       };
     } catch (error) {
+      const provenance = this.buildAttemptedProvenance(
+        primaryResult?.provenance,
+        undefined,
+      );
+
       return {
         success: false,
         error:
@@ -75,10 +90,27 @@ export class FallbackProvider<TInput, TOutput>
         ...(primaryResult?.freshness !== undefined
           ? { freshness: primaryResult.freshness }
           : {}),
-        ...(primaryResult?.provenance !== undefined
-          ? { provenance: primaryResult.provenance }
-          : {}),
+        ...(provenance !== undefined ? { provenance } : {}),
       };
     }
+  }
+
+  private buildAttemptedProvenance(
+    primaryProvenance: ProvenanceMetadata | undefined,
+    fallbackProvenance: ProvenanceMetadata | undefined,
+  ): ProvenanceMetadata | undefined {
+    const primarySources = primaryProvenance?.sources ?? [];
+    const fallbackSources = fallbackProvenance?.sources ?? [];
+
+    if (primarySources.length === 0 && fallbackSources.length === 0) {
+      return undefined;
+    }
+
+    const sources = [...primarySources, ...fallbackSources];
+
+    return {
+      sources,
+      sourceCount: sources.length,
+    };
   }
 }

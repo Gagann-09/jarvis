@@ -1,9 +1,14 @@
-import type { Provider, ProviderResult } from "../types/provider.js";
-import type { ProvenanceMetadata, SourceMetadata } from "../types/metadata.js";
+import type {
+  ProvenanceMetadata,
+  SourceMetadata,
+} from "../types/metadata.js";
+import type {
+  Provider,
+  ProviderResult,
+} from "../types/provider.js";
 
 export class MultiSourceProvider<TInput, TData extends object>
-  implements Provider<TInput, readonly TData[]>
-{
+  implements Provider<TInput, readonly TData[]> {
   readonly name: string;
 
   constructor(
@@ -21,10 +26,25 @@ export class MultiSourceProvider<TInput, TData extends object>
     input: TInput,
   ): Promise<ProviderResult<readonly TData[]>> {
     const results = await Promise.all(
-      this.providers.map(async (provider) => ({
-        provider,
-        result: await provider.fetch(input),
-      })),
+      this.providers.map(async (provider) => {
+        try {
+          return {
+            provider,
+            result: await provider.fetch(input),
+          };
+        } catch (error) {
+          return {
+            provider,
+            result: {
+              success: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Provider failed.",
+            } satisfies ProviderResult<readonly TData[]>,
+          };
+        }
+      }),
     );
 
     const successful = results.filter(
@@ -49,6 +69,21 @@ export class MultiSourceProvider<TInput, TData extends object>
         (entry) => entry.result.freshness !== undefined,
       )?.result.freshness;
 
+      const sources: SourceMetadata[] = results
+        .map((entry) => entry.result.source)
+        .filter(
+          (source): source is SourceMetadata =>
+            source !== undefined,
+        );
+
+      const provenance =
+        sources.length > 0
+          ? {
+            sources,
+            sourceCount: sources.length,
+          }
+          : undefined;
+
       return {
         success: false,
         error:
@@ -60,8 +95,9 @@ export class MultiSourceProvider<TInput, TData extends object>
             )
             .join(" | ") ||
           "All news providers failed.",
-        ...(source !== undefined && { source }),
-        ...(freshness !== undefined && { freshness }),
+        ...(source !== undefined ? { source } : {}),
+        ...(freshness !== undefined ? { freshness } : {}),
+        ...(provenance !== undefined ? { provenance } : {}),
       };
     }
 
@@ -99,7 +135,7 @@ export class MultiSourceProvider<TInput, TData extends object>
         source: this.name,
         retrievedAt: new Date().toISOString(),
       },
-      ...(freshness !== undefined && { freshness }),
+      ...(freshness !== undefined ? { freshness } : {}),
     };
   }
 }

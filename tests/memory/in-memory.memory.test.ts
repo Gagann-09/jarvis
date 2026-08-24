@@ -83,4 +83,53 @@ describe("InMemoryMemory contract", () => {
 
     await expect(memory.delete("unknown")).resolves.toBe(false);
   });
+    it("preserves provenance metadata when storing a memory", async () => {
+  const memory = new InMemoryMemory();
+
+  const record = createRecord({
+    source: {
+      source: "test-source",
+      url: "https://example.com",
+      retrievedAt: "2026-08-24T18:00:00.000Z",
+    },
+    freshness: {
+      publishedAt: "2026-08-24T17:00:00.000Z",
+      ageMinutes: 60,
+      score: 0.9,
+    },
+    confidence: {
+      score: 0.95,
+      reason: "Verified test metadata.",
+    },
+  });
+
+  await memory.store(record);
+
+  await expect(memory.get(record.id)).resolves.toEqual(record);
+});
+
+  it("returns only memories matching all requested tags", async () => {
+    const memory = new InMemoryMemory();
+
+    await memory.store(
+      createRecord({
+        id: "career-ai",
+        tags: ["career", "ai"],
+      }),
+    );
+
+    await memory.store(
+      createRecord({
+        id: "career-events",
+        tags: ["career", "events"],
+      }),
+    );
+
+    const results = await memory.retrieve({
+      tags: ["career", "ai"],
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.id).toBe("career-ai");
+  });
 });

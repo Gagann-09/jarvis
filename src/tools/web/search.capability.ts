@@ -4,6 +4,7 @@ import type {
   SearchInput,
   SearchResult,
 } from "./search.schema.js";
+import { hasPermission } from "../../types/permissions.js";
 import { FallbackProvider } from "../../providers/fallback.provider.js";
 import { MultiSourceProvider } from "../../providers/multi-source.provider.js";
 import { gdeltNewsProvider } from "../../providers/news/gdelt.provider.js";
@@ -40,7 +41,7 @@ export const createSearchCapability = (
   },
 
   async execute(input, context) {
-    if (context.permission !== "read") {
+    if (!hasPermission(context.permission, "read")) {
       return {
         success: false,
         error: `Permission denied: Tool search requires read permission, but ${context.permission} was provided.`,

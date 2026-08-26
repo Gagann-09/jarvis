@@ -71,7 +71,7 @@ describe("Search capability fallback", () => {
     expect(result.source?.source).toBe("test-fallback");
   });
 
-  it("rejects prepare context with a controlled failure", async () => {
+  it("allows prepare context to use read capability", async () => {
     const capability = createSearchCapability({
       name: "test-provider",
       async fetch() {
@@ -81,14 +81,13 @@ describe("Search capability fallback", () => {
 
     const result = await capability.execute(
       { query: "test" },
-      { requestId: "search-test-prepare", permission: "prepare" } as never,
+      { requestId: "search-test-prepare", permission: "prepare" },
     );
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Permission denied");
+    expect(result.success).toBe(true);
   });
 
-  it("rejects execute context with a controlled failure", async () => {
+  it("allows execute context to use read capability", async () => {
     const capability = createSearchCapability({
       name: "test-provider",
       async fetch() {
@@ -98,10 +97,28 @@ describe("Search capability fallback", () => {
 
     const result = await capability.execute(
       { query: "test" },
-      { requestId: "search-test-execute", permission: "execute" } as never,
+      { requestId: "search-test-execute", permission: "execute" },
     );
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Permission denied");
+    expect(result.success).toBe(true);
+  });
+
+  it("allows higher permission contexts to use read capability", async () => {
+    const capability = createSearchCapability({
+      name: "test-provider",
+      async fetch() {
+        return { success: true, data: [] };
+      },
+    });
+
+    const result = await capability.execute(
+      { query: "AI" },
+      {
+        requestId: "permission-test-001",
+        permission: "execute",
+      },
+    );
+
+    expect(result.success).toBe(true);
   });
 });

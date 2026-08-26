@@ -278,7 +278,7 @@ describe("NewsAgent contract", () => {
     );
   });
 
-  it("translates capability permission failures into controlled AgentResult failures", async () => {
+  it("allows higher permission contexts to use read capabilities", async () => {
     const searchCapability = createSearchCapability({
       name: "multi-source",
       async fetch() {
@@ -304,8 +304,6 @@ describe("NewsAgent contract", () => {
       context,
     );
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Permission denied");
-    expect(result.decision?.status).toBe("review");
+    expect(result.success).toBe(true);
   });
 });

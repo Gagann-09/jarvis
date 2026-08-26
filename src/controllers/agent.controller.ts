@@ -24,6 +24,7 @@ export const executeAgent = async (
     | {
         agentName?: unknown;
         input?: unknown;
+        permission?: unknown;
       }
     | undefined;
 
@@ -42,6 +43,24 @@ export const executeAgent = async (
 
   const agentName = body.agentName;
   const rawInput = body.input ?? {};
+  const rawPermission = body.permission;
+
+  let permission: "read" | "prepare" | "execute" | undefined;
+
+  if (rawPermission !== undefined) {
+    if (
+      rawPermission !== "read" &&
+      rawPermission !== "prepare" &&
+      rawPermission !== "execute"
+    ) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid permission level.",
+      } satisfies AgentHttpResponse);
+      return;
+    }
+    permission = rawPermission as "read" | "prepare" | "execute";
+  }
 
   if (
     agentName === "news" ||
@@ -66,7 +85,7 @@ export const executeAgent = async (
     try {
       const result = await runtime.orchestrator.execute(
         parsed.data,
-        await runtime.createContext(createRequestId()),
+        await runtime.createContext(createRequestId(), permission),
       );
 
       if (result.success) {
@@ -75,7 +94,13 @@ export const executeAgent = async (
       }
 
       if (result.result === null) {
-        res.status(404).json(result satisfies OrchestratorResult);
+        if (result.error === "Agent not found.") {
+          res.status(404).json(result satisfies OrchestratorResult);
+        } else if (result.error === "Agent returned invalid result contract.") {
+          res.status(502).json(result satisfies OrchestratorResult);
+        } else {
+          res.status(500).json(result satisfies OrchestratorResult);
+        }
         return;
       }
 
@@ -96,7 +121,7 @@ export const executeAgent = async (
         agentName,
         input: rawInput,
       },
-      await runtime.createContext(createRequestId()),
+      await runtime.createContext(createRequestId(), permission),
     );
 
     if (result.success) {
@@ -104,7 +129,18 @@ export const executeAgent = async (
       return;
     }
 
-    res.status(404).json(result satisfies OrchestratorResult);
+    if (result.result === null) {
+      if (result.error === "Agent not found.") {
+        res.status(404).json(result satisfies OrchestratorResult);
+      } else if (result.error === "Agent returned invalid result contract.") {
+        res.status(502).json(result satisfies OrchestratorResult);
+      } else {
+        res.status(500).json(result satisfies OrchestratorResult);
+      }
+      return;
+    }
+
+    res.status(502).json(result satisfies OrchestratorResult);
   } catch {
     res.status(500).json({
       success: false,

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Request, Response } from "express";
 import { executeAgent } from "../../src/controllers/agent.controller.js";
+import { OrchestratorService } from "../../src/core/orchestrator/orchestrator.service.js";
 
 const createResponse = () => {
   const response = {
@@ -215,5 +216,48 @@ describe("Agent controller contract", () => {
       success: false,
       error: "Invalid agent request.",
     });
+  });
+
+  it("rejects invalid permission levels", async () => {
+    const req = {
+      body: {
+        agentName: "news",
+        input: { topic: "AI" },
+        permission: "write",
+      },
+    } as Request;
+
+    const res = createResponse();
+
+    await executeAgent(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({
+      success: false,
+      error: "Invalid permission level.",
+    });
+  });
+
+  it("propagates valid permission levels to the runtime context", async () => {
+    const executeSpy = vi.spyOn(OrchestratorService.prototype, "execute");
+
+    const req = {
+      body: {
+        agentName: "unknown",
+        input: {},
+        permission: "prepare",
+      },
+    } as Request;
+
+    const res = createResponse();
+
+    await executeAgent(req, res);
+
+    expect(executeSpy).toHaveBeenCalled();
+
+    const passedContext = executeSpy.mock.calls[0][1];
+    expect(passedContext.permission).toBe("prepare");
+
+    executeSpy.mockRestore();
   });
 });

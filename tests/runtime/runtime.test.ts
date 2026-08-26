@@ -4,10 +4,11 @@ import type {
   SearchInput,
   SearchResult,
 } from "../../src/tools/web/search.schema.js";
-import { createRuntime } from "../../src/core/runtime/runtime.js";
+import type { Runtime } from "../../src/types/runtime.js";
 import { AgentContextService } from "../../src/services/agents/agent-context.service.js";
 import { careerCapability } from "../../src/tools/web/career.capability.js";
 import { eventsCapability } from "../../src/tools/web/events.capability.js";
+import { createRuntime } from "../../src/core/runtime/runtime.js";
 
 const mockSearchCapability: ToolCapability<
   SearchInput,
@@ -41,7 +42,14 @@ const mockSearchCapability: ToolCapability<
   },
 };
 
-describe("Runtime composition", () => {
+describe("Runtime contract", () => {
+  it("creates an object satisfying the Runtime contract", () => {
+    const runtime: Runtime = createRuntime();
+
+    expect(runtime.orchestrator).toBeDefined();
+    expect(runtime.createContext).toBeTypeOf("function");
+  });
+
   it("registers all three read-only agents", async () => {
     const runtime = createRuntime();
 
@@ -105,8 +113,44 @@ describe("Runtime composition", () => {
     expect(context.requestId).toBe("runtime-test-002");
     expect(context.permission).toBe("read");
     expect(context.relevantMemory).toEqual([]);
+
     expect(context.capabilities.search).toBeDefined();
     expect(context.capabilities.career).toBeDefined();
     expect(context.capabilities.events).toBeDefined();
+  });
+
+  it("creates contexts with the requested permission", () => {
+    const runtime = createRuntime();
+
+    const context = runtime.createContext(
+      "runtime-test-003",
+      "read",
+    );
+
+    expect(context.permission).toBe("read");
+  });
+
+  it("creates independent contexts for separate requests", () => {
+    const runtime = createRuntime();
+
+    const first = runtime.createContext("runtime-test-004");
+    const second = runtime.createContext("runtime-test-005");
+
+    expect(first.requestId).toBe("runtime-test-004");
+    expect(second.requestId).toBe("runtime-test-005");
+
+    expect(first).not.toBe(second);
+  });
+
+  it("exposes the expected read-only capabilities", () => {
+    const runtime = createRuntime();
+
+    const context = runtime.createContext("runtime-test-006");
+
+    expect(context.capabilities).toEqual({
+      search: expect.anything(),
+      career: expect.anything(),
+      events: expect.anything(),
+    });
   });
 });

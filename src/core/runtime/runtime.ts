@@ -1,13 +1,15 @@
 import { CareerAgent } from "../../agents/career/career.agent.js";
 import { EventsAgent } from "../../agents/events/events.agent.js";
 import { NewsAgent } from "../../agents/news/news.agent.js";
-import { OrchestratorService } from "../orchestrator/orchestrator.service.js";
+import { AgentContextService } from "../../services/agents/agent-context.service.js";
 import { careerCapability } from "../../tools/web/career.capability.js";
 import { eventsCapability } from "../../tools/web/events.capability.js";
 import { searchCapability } from "../../tools/web/search.capability.js";
-import { AgentContextService } from "../../services/agents/agent-context.service.js";
+import type { PermissionLevel } from "../../types/permissions.js";
+import type { Runtime } from "../../types/runtime.js";
+import { OrchestratorService } from "../orchestrator/orchestrator.service.js";
 
-export const createRuntime = () => {
+export const createRuntime = (): Runtime => {
   const orchestrator = new OrchestratorService();
 
   orchestrator.registerAgent(new NewsAgent());
@@ -16,7 +18,7 @@ export const createRuntime = () => {
 
   const createContext = (
     requestId: string,
-    permission: "read" = "read",
+    permission: PermissionLevel = "read",
   ) =>
     new AgentContextService({
       requestId,

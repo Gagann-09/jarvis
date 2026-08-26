@@ -8,7 +8,11 @@ import { careerCapability } from "../../src/tools/web/career.capability.js";
 import { eventsCapability } from "../../src/tools/web/events.capability.js";
 import { createSearchCapability } from "../../src/tools/web/search.capability.js";
 import { mockNewsProvider } from "../../src/providers/news/mock-news.provider.js";
-import type { Agent } from "../../src/types/agent.js";
+import type {
+  Agent,
+  AgentResult,
+} from "../../src/types/agent.js";
+import type { AgentContext } from "../../src/types/agent-context.js";
 
 const createContext = (requestId: string) =>
   new AgentContextService({
@@ -22,6 +26,144 @@ const createContext = (requestId: string) =>
   });
 
 describe("Orchestrator contract", () => {
+  it("forwards request input and context unchanged to the registered agent", async () => {
+    const orchestrator = new OrchestratorService();
+    const input = { prompt: "preserve input" };
+    const context = createContext("orchestrator-forward-001");
+    let receivedInput: unknown;
+    let receivedContext: AgentContext | undefined;
+
+    const probeAgent: Agent<typeof input, { ok: boolean }> = {
+      definition: { name: "probe", description: "Captures inputs" },
+      execute: async (agentInput, agentContext) => {
+        receivedInput = agentInput;
+        receivedContext = agentContext;
+
+        return {
+          success: true,
+          data: { ok: true },
+          decision: {
+            status: "accept",
+            confidence: {
+              score: 1,
+            },
+            reason: "Input and context received.",
+          },
+        };
+      },
+    };
+
+    orchestrator.registerAgent(probeAgent);
+
+    const result = await orchestrator.execute(
+      {
+        agentName: "probe",
+        input,
+      },
+      context,
+    );
+
+    expect(result.success).toBe(true);
+    expect(receivedInput).toBe(input);
+    expect(receivedContext).toBe(context);
+  });
+
+  it("wraps the full agent result without flattening decision metadata", async () => {
+    const orchestrator = new OrchestratorService();
+    const agentResult: AgentResult<{ value: string }> = {
+      success: true,
+      data: { value: "ok" },
+      decision: {
+        status: "review",
+        confidence: {
+          score: 0.75,
+          reason: "Probe confidence.",
+        },
+        reason: "Probe result requires review.",
+      },
+      source: {
+        source: "probe-source",
+        retrievedAt: "2026-08-26T08:30:00.000Z",
+      },
+      freshness: {
+        score: 0.9,
+      },
+      provenance: {
+        sources: [
+          {
+            source: "probe-source",
+            retrievedAt: "2026-08-26T08:30:00.000Z",
+          },
+        ],
+        sourceCount: 1,
+      },
+    };
+
+    const probeAgent: Agent<unknown, { value: string }> = {
+      definition: {
+        name: "metadata-probe",
+        description: "Returns a full agent result",
+      },
+      execute: async () => agentResult,
+    };
+
+    orchestrator.registerAgent(probeAgent);
+
+    const result = await orchestrator.execute(
+      {
+        agentName: "metadata-probe",
+        input: {},
+      },
+      createContext("orchestrator-metadata-001"),
+    );
+
+    expect(result).toEqual({
+      agentName: "metadata-probe",
+      success: true,
+      result: agentResult,
+    });
+  });
+
+  it("promotes controlled agent errors while preserving the agent result", async () => {
+    const orchestrator = new OrchestratorService();
+    const agentResult: AgentResult<unknown> = {
+      success: false,
+      decision: {
+        status: "review",
+        confidence: {
+          score: 0,
+        },
+        reason: "Probe failed in a controlled way.",
+      },
+      error: "Controlled probe failure.",
+    };
+
+    const probeAgent: Agent<unknown, unknown> = {
+      definition: {
+        name: "controlled-failure",
+        description: "Returns a controlled failure",
+      },
+      execute: async () => agentResult,
+    };
+
+    orchestrator.registerAgent(probeAgent);
+
+    const result = await orchestrator.execute(
+      {
+        agentName: "controlled-failure",
+        input: {},
+      },
+      createContext("orchestrator-controlled-failure-001"),
+    );
+
+    expect(result).toEqual({
+      agentName: "controlled-failure",
+      success: false,
+      result: agentResult,
+      error: "Controlled probe failure.",
+    });
+  });
+
   it("registers and executes a NewsAgent", async () => {
     const orchestrator = new OrchestratorService();
 

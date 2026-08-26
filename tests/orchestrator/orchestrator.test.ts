@@ -264,4 +264,78 @@ describe("Orchestrator contract", () => {
     expect(result.result).toBeNull();
     expect(result.error).toBe("Agent execution failed.");
   });
+
+  it("returns a controlled result when an agent returns a malformed contract", async () => {
+    const orchestrator = new OrchestratorService();
+
+    const malformedAgent = {
+      definition: { name: "malformed", description: "Returns invalid data" },
+      execute: async () => {
+        return {
+          success: true,
+          // Missing data for a success
+          // Missing decision
+        } as any;
+      },
+    } as Agent<unknown, unknown>;
+
+    orchestrator.registerAgent(malformedAgent);
+
+    const result = await orchestrator.execute(
+      {
+        agentName: "malformed",
+        input: {},
+      },
+      createContext("orchestrator-malformed-001"),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.agentName).toBe("malformed");
+    expect(result.result).toBeNull();
+    expect(result.error).toBe("Agent returned invalid result contract.");
+  });
+
+  it("preserves unknown keys on the agent result without stripping them", async () => {
+    const orchestrator = new OrchestratorService();
+
+    const agentWithExtraData = {
+      definition: { name: "extra-keys", description: "Returns extra keys" },
+      execute: async () => {
+        return {
+          success: true,
+          data: { ok: true },
+          decision: {
+            status: "accept",
+            confidence: { score: 1, extraConfidenceProp: "preserved" },
+            reason: "test",
+            extraDecisionProp: "preserved",
+          },
+          source: {
+            source: "test-source",
+            retrievedAt: "2026-08-26T08:30:00.000Z",
+            extraSourceProp: "preserved",
+          },
+          extraRootProp: "preserved",
+        } as any;
+      },
+    } as Agent<unknown, unknown>;
+
+    orchestrator.registerAgent(agentWithExtraData);
+
+    const result = await orchestrator.execute(
+      {
+        agentName: "extra-keys",
+        input: {},
+      },
+      createContext("orchestrator-extra-001"),
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.result).toBeDefined();
+    const resObj = result.result as any;
+    expect(resObj.extraRootProp).toBe("preserved");
+    expect(resObj.decision.extraDecisionProp).toBe("preserved");
+    expect(resObj.decision.confidence.extraConfidenceProp).toBe("preserved");
+    expect(resObj.source.extraSourceProp).toBe("preserved");
+  });
 });

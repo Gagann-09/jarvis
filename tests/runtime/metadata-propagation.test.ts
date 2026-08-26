@@ -291,7 +291,6 @@ vi.mock("../../src/core/runtime/runtime.js", async () => {
     "../../src/services/agents/agent-context.service.js"
   );
 
-  // Use the source-metadata-provider for HTTP tests
   const httpProvider: Provider<
     SearchInput,
     readonly SearchResult[]
@@ -317,6 +316,53 @@ vi.mock("../../src/core/runtime/runtime.js", async () => {
     },
   };
 
+  const careerHttpProvider: Provider<
+    import("../../src/tools/web/career.schema.js").CareerSearchInput,
+    readonly import("../../src/tools/web/career.schema.js").CareerOpportunity[]
+  > = {
+    name: "http-career-test-provider",
+
+    async fetch(input) {
+      return {
+        success: true,
+        data: [
+          {
+            title: `HTTP career result for ${input.query}`,
+            organization: "HTTP Org",
+            url: "https://example.com/http-career-test",
+            description: "HTTP career metadata test result.",
+            source: "http-career-test-provider",
+            publishedAt: FIXED_TIME,
+          },
+        ],
+        source: {
+          source: "http-career-test-provider",
+          url: "https://example.com/http-career-test",
+          retrievedAt: FIXED_TIME,
+        },
+        provenance: {
+          sources: [
+            {
+              source: "http-career-test-provider",
+              url: "https://example.com/http-career-test",
+              retrievedAt: FIXED_TIME,
+            }
+          ],
+          sourceCount: 1,
+        },
+        freshness: {
+          publishedAt: FIXED_TIME,
+          ageMinutes: 0,
+          score: 1,
+        },
+        confidence: {
+          score: 0.95,
+          reason: "HTTP test provider confidence",
+        }
+      };
+    },
+  };
+
   return {
     createRuntime: () => {
       const orchestrator = new OrchestratorService();
@@ -330,7 +376,23 @@ vi.mock("../../src/core/runtime/runtime.js", async () => {
           permission: "read",
           capabilities: {
             search: createSearchCapability(httpProvider),
-            career: careerCapability,
+            career: {
+              definition: careerCapability.definition,
+              async execute(input, context) {
+                // Return exactly what validateCareerResult would output
+                // based on the mocked provider, simulating the capability logic
+                const res = await careerHttpProvider.fetch(input);
+                if (!res.success) return res as any;
+                return {
+                  success: true,
+                  data: res.data as any,
+                  source: res.source,
+                  provenance: res.provenance,
+                  freshness: res.freshness,
+                  confidence: res.confidence,
+                };
+              }
+            },
             events: eventsCapability,
           },
         });
@@ -475,6 +537,51 @@ describe("HTTP metadata propagation", () => {
     expect(
       (confidence.score as number),
     ).toBeGreaterThan(0);
+  });
+
+  it("HTTP preserves successful career agent metadata", async () => {
+    const res = await http("POST", "/agents/execute", {
+      agentName: "career",
+      input: { query: "HTTP career metadata" },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.agentName).toBe("career");
+
+    const agentResult = res.body.result as Record<string, unknown>;
+    expect(agentResult.success).toBe(true);
+    
+    // Check Data
+    const data = agentResult.data as Record<string, unknown>;
+    expect(data.opportunities).toBeDefined();
+    expect((data.opportunities as unknown[])).toHaveLength(1);
+
+    // Check Source
+    expect(agentResult.source).toBeDefined();
+    const source = agentResult.source as Record<string, unknown>;
+    expect(source.source).toBe("http-career-test-provider");
+    expect(source.retrievedAt).toBe(FIXED_TIME);
+
+    // Check Provenance
+    expect(agentResult.provenance).toBeDefined();
+    const provenance = agentResult.provenance as Record<string, unknown>;
+    expect(provenance.sourceCount).toBe(1);
+
+    // Check Freshness
+    expect(agentResult.freshness).toBeDefined();
+    const freshness = agentResult.freshness as Record<string, unknown>;
+    expect(freshness.publishedAt).toBe(FIXED_TIME);
+    expect(freshness.score).toBe(1);
+
+    // Check Decision / Confidence
+    expect(agentResult.decision).toBeDefined();
+    const decision = agentResult.decision as Record<string, unknown>;
+    expect(decision.status).toBe("accept");
+    
+    const confidence = decision.confidence as Record<string, unknown>;
+    expect(typeof confidence.score).toBe("number");
+    expect(confidence.score).toBeCloseTo(0.95);
   });
 
   it("HTTP preserves controlled failures", async () => {

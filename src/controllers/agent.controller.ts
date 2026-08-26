@@ -28,7 +28,8 @@ export const executeAgent = async (
   }
 
   const agentName = body.agentName;
-  const input = body.input ?? {};
+  const rawInput = body.input ?? {};
+  let input: unknown = rawInput;
 
   if (
     agentName === "news" ||
@@ -37,7 +38,7 @@ export const executeAgent = async (
   ) {
     const parsed = AgentRequestSchema.safeParse({
       agentName,
-      input,
+      input: rawInput,
     });
 
     if (!parsed.success) {
@@ -48,6 +49,8 @@ export const executeAgent = async (
       });
       return;
     }
+
+    input = parsed.data.input;
   }
 
   try {
@@ -56,7 +59,9 @@ export const executeAgent = async (
         agentName,
         input,
       },
-      runtime.createContext(`http-${Date.now()}-${crypto.randomUUID()}`),
+      runtime.createContext(
+        `http-${Date.now()}-${crypto.randomUUID()}`,
+      ),
     );
 
     res.status(result.success ? 200 : 404).json(result);

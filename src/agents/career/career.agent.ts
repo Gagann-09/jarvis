@@ -21,8 +21,7 @@ export interface CareerOutput {
 }
 
 export class CareerAgent
-  implements Agent<CareerInput, CareerOutput>
-{
+  implements Agent<CareerInput, CareerOutput> {
   readonly definition = {
     name: "career",
     description: "Finds read-only career opportunities.",
@@ -64,6 +63,15 @@ export class CareerAgent
           reason: "Career search did not return usable opportunities.",
         },
         error: result.error ?? "Career search failed.",
+        ...(result.source !== undefined && {
+          source: result.source,
+        }),
+        ...(result.provenance !== undefined && {
+          provenance: result.provenance,
+        }),
+        ...(result.freshness !== undefined && {
+          freshness: result.freshness,
+        }),
       };
     }
 
@@ -71,7 +79,9 @@ export class CareerAgent
       result.confidence,
       "No confidence metadata was provided.",
     );
-    const decisionStatus = decisionStatusForConfidence(confidence);
+
+    const decisionStatus =
+      decisionStatusForConfidence(confidence);
 
     return {
       success: true,
@@ -86,6 +96,15 @@ export class CareerAgent
             ? "Career search completed successfully."
             : "Career search requires review due to confidence.",
       },
+      ...(result.source !== undefined && {
+        source: result.source,
+      }),
+      ...(result.provenance !== undefined && {
+        provenance: result.provenance,
+      }),
+      ...(result.freshness !== undefined && {
+        freshness: result.freshness,
+      }),
     };
   }
 }

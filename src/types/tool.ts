@@ -1,6 +1,7 @@
 import type {
   ConfidenceMetadata,
   FreshnessMetadata,
+  ProvenanceMetadata,
   SourceMetadata,
 } from "./metadata.js";
 import type { PermissionLevel } from "./permissions.js";
@@ -21,6 +22,7 @@ export interface ToolResult<TOutput> {
   readonly data?: TOutput;
   readonly error?: string;
   readonly source?: SourceMetadata;
+  readonly provenance?: ProvenanceMetadata;
   readonly freshness?: FreshnessMetadata;
   readonly confidence?: ConfidenceMetadata;
 }

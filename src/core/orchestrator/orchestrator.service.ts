@@ -5,6 +5,7 @@ import type {
   OrchestratorRequest,
   OrchestratorResult,
 } from "../../types/orchestrator.js";
+import { AgentResultSchema } from "./agent-result.schema.js";
 
 export class OrchestratorService implements Orchestrator {
   private readonly agents = new Map<string, Agent<unknown, unknown>>();
@@ -34,7 +35,20 @@ export class OrchestratorService implements Orchestrator {
     }
 
     try {
-      const result = await agent.execute(request.input, context);
+      const rawResult = await agent.execute(request.input, context);
+
+      const parsed = AgentResultSchema.safeParse(rawResult);
+
+      if (!parsed.success) {
+        return {
+          agentName: request.agentName,
+          success: false,
+          result: null,
+          error: "Agent returned invalid result contract.",
+        };
+      }
+
+      const result = parsed.data as import("../../types/agent.js").AgentResult<unknown>;
 
       return {
         agentName: request.agentName,

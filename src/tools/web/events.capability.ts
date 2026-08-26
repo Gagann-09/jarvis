@@ -1,4 +1,5 @@
 import type { ToolCapability } from "../../types/tool.js";
+import { hasPermission } from "../../types/permissions.js";
 import type {
   Event,
   EventsSearchInput,
@@ -27,7 +28,7 @@ export const eventsCapability: ToolCapability<
   },
 
   async execute(input, context) {
-    if (context.permission !== "read") {
+    if (!hasPermission(context.permission, "read")) {
       return {
         success: false,
         error: `Permission denied: Tool events_search requires read permission, but ${context.permission} was provided.`,

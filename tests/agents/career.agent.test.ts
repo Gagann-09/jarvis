@@ -45,7 +45,7 @@ describe("CareerAgent contract", () => {
     expect(result.decision.confidence.score).toBe(1);
   });
 
-  it("translates capability permission failures into controlled AgentResult failures", async () => {
+  it("allows execute context to use read capability through agent", async () => {
     const context = new AgentContextService({
       requestId: "career-agent-test-002",
       permission: "execute",
@@ -66,8 +66,8 @@ describe("CareerAgent contract", () => {
       context,
     );
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Permission denied");
-    expect(result.decision?.status).toBe("review");
+    expect(result.success).toBe(true);
+    expect(result.data?.opportunities).toHaveLength(1);
+    expect(result.decision.status).toBe("accept");
   });
 });

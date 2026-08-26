@@ -29,7 +29,7 @@ describe("Career capability contract", () => {
     expect(result.confidence?.score).toBe(1);
   });
 
-  it("rejects prepare context with a controlled failure", async () => {
+  it("allows prepare context to use read capability", async () => {
     const input = CareerSearchInputSchema.parse({
       query: "AI ML internship",
       location: "Bangalore",
@@ -40,11 +40,11 @@ describe("Career capability contract", () => {
       permission: "prepare",
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Permission denied");
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveLength(1);
   });
 
-  it("rejects execute context with a controlled failure", async () => {
+  it("allows execute context to use read capability", async () => {
     const input = CareerSearchInputSchema.parse({
       query: "AI ML internship",
       location: "Bangalore",
@@ -55,7 +55,7 @@ describe("Career capability contract", () => {
       permission: "execute",
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Permission denied");
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveLength(1);
   });
 });

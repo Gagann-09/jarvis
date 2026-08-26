@@ -1,5 +1,10 @@
 import type { Agent, AgentResult } from "../../types/agent.js";
 import type { AgentContext } from "../../types/agent-context.js";
+import {
+  DecisionStatus,
+  decisionStatusForConfidence,
+  normalizeConfidence,
+} from "../../types/decision.js";
 import type {
   Event,
   EventsSearchInput,
@@ -50,19 +55,27 @@ export class EventsAgent
     );
 
     if (!result.success || result.data === undefined) {
+      const confidence = normalizeConfidence(
+        result.confidence,
+        "Events capability returned no usable results.",
+      );
+
       return {
         success: false,
         decision: {
-          status: "review",
-          confidence: result.confidence ?? {
-            score: 0,
-            reason: "Events capability returned no usable results.",
-          },
+          status: DecisionStatus.REVIEW,
+          confidence,
           reason: "Event search did not return usable events.",
         },
         error: result.error ?? "Event search failed.",
       };
     }
+
+    const confidence = normalizeConfidence(
+      result.confidence,
+      "No confidence metadata was provided.",
+    );
+    const decisionStatus = decisionStatusForConfidence(confidence);
 
     return {
       success: true,
@@ -70,12 +83,12 @@ export class EventsAgent
         events: result.data,
       },
       decision: {
-        status: "accept",
-        confidence: result.confidence ?? {
-          score: 0,
-          reason: "No confidence metadata was provided.",
-        },
-        reason: "Event search completed successfully.",
+        status: decisionStatus,
+        confidence,
+        reason:
+          decisionStatus === DecisionStatus.ACCEPT
+            ? "Event search completed successfully."
+            : "Event search requires review due to confidence.",
       },
     };
   }

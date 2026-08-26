@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { Decision } from "../../src/types/decision.js";
+import {
+  ConfidenceScore,
+  DecisionStatus,
+  decisionStatusForConfidence,
+  normalizeConfidence,
+  type Decision,
+} from "../../src/types/decision.js";
 
 describe("Decision contract", () => {
   it("represents an accepted high-confidence decision", () => {
@@ -41,5 +47,60 @@ describe("Decision contract", () => {
     };
 
     expect(decision.status).toBe("reject");
+  });
+
+  it("normalizes confidence scores to the supported range", () => {
+    expect(
+      normalizeConfidence(
+        { score: 1.4, reason: "Too high." },
+        "Fallback.",
+      ),
+    ).toEqual({
+      score: ConfidenceScore.MAX,
+      reason: "Too high.",
+    });
+
+    expect(
+      normalizeConfidence(
+        { score: -0.2, reason: "Too low." },
+        "Fallback.",
+      ),
+    ).toEqual({
+      score: ConfidenceScore.MIN,
+      reason: "Too low.",
+    });
+  });
+
+  it("uses fallback confidence when metadata is missing or invalid", () => {
+    expect(
+      normalizeConfidence(undefined, "Missing confidence."),
+    ).toEqual({
+      score: ConfidenceScore.MIN,
+      reason: "Missing confidence.",
+    });
+
+    expect(
+      normalizeConfidence(
+        { score: Number.NaN },
+        "Invalid confidence.",
+      ),
+    ).toEqual({
+      score: ConfidenceScore.MIN,
+      reason: "Invalid confidence.",
+    });
+  });
+
+  it("maps confidence to review or accept decisions", () => {
+    expect(
+      decisionStatusForConfidence({
+        score: ConfidenceScore.ACCEPT_THRESHOLD - 0.01,
+      }),
+    ).toBe(DecisionStatus.REVIEW);
+
+    expect(
+      decisionStatusForConfidence({
+        score: ConfidenceScore.ACCEPT_THRESHOLD,
+      }),
+    ).toBe(DecisionStatus.ACCEPT);
   });
 });

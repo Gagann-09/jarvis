@@ -8,5 +8,5 @@ export interface Runtime {
   createContext(
     requestId: string,
     permission?: PermissionLevel,
-  ): AgentContext;
+  ): Promise<AgentContext>;
 }

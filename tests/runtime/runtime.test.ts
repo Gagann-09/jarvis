@@ -105,10 +105,10 @@ describe("Runtime contract", () => {
     expect(events.success).toBe(true);
   });
 
-  it("creates read-only contexts by default", () => {
+  it("creates read-only contexts by default", async () => {
     const runtime = createRuntime();
 
-    const context = runtime.createContext("runtime-test-002");
+    const context = await runtime.createContext("runtime-test-002");
 
     expect(context.requestId).toBe("runtime-test-002");
     expect(context.permission).toBe("read");
@@ -119,10 +119,10 @@ describe("Runtime contract", () => {
     expect(context.capabilities.events).toBeDefined();
   });
 
-  it("creates contexts with the requested permission", () => {
+  it("creates contexts with the requested permission", async () => {
     const runtime = createRuntime();
 
-    const context = runtime.createContext(
+    const context = await runtime.createContext(
       "runtime-test-003",
       "read",
     );
@@ -130,11 +130,11 @@ describe("Runtime contract", () => {
     expect(context.permission).toBe("read");
   });
 
-  it("creates independent contexts for separate requests", () => {
+  it("creates independent contexts for separate requests", async () => {
     const runtime = createRuntime();
 
-    const first = runtime.createContext("runtime-test-004");
-    const second = runtime.createContext("runtime-test-005");
+    const first = await runtime.createContext("runtime-test-004");
+    const second = await runtime.createContext("runtime-test-005");
 
     expect(first.requestId).toBe("runtime-test-004");
     expect(second.requestId).toBe("runtime-test-005");
@@ -142,10 +142,10 @@ describe("Runtime contract", () => {
     expect(first).not.toBe(second);
   });
 
-  it("exposes the expected read-only capabilities", () => {
+  it("exposes the expected read-only capabilities", async () => {
     const runtime = createRuntime();
 
-    const context = runtime.createContext("runtime-test-006");
+    const context = await runtime.createContext("runtime-test-006");
 
     expect(context.capabilities).toEqual({
       search: expect.anything(),

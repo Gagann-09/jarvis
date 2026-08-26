@@ -66,7 +66,7 @@ export const executeAgent = async (
     try {
       const result = await runtime.orchestrator.execute(
         parsed.data,
-        runtime.createContext(createRequestId()),
+        await runtime.createContext(createRequestId()),
       );
 
       if (result.success) {
@@ -96,7 +96,7 @@ export const executeAgent = async (
         agentName,
         input: rawInput,
       },
-      runtime.createContext(createRequestId()),
+      await runtime.createContext(createRequestId()),
     );
 
     if (result.success) {

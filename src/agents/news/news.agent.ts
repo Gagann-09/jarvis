@@ -4,6 +4,11 @@ import type {
   SearchInput,
   SearchResult,
 } from "../../tools/web/search.schema.js";
+import {
+  DecisionStatus,
+  decisionStatusForConfidence,
+  normalizeConfidence,
+} from "../../types/decision.js";
 import { newsFreshnessService } from "../../services/news/news-freshness.service.js";
 import { newsReliabilityService } from "../../services/news/news-reliability.service.js";
 
@@ -37,15 +42,16 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
     );
 
     if (!result.success || result.data === undefined) {
+      const confidence = normalizeConfidence(
+        result.confidence,
+        "The search tool did not provide usable results.",
+      );
+
       return {
         success: false,
         decision: {
-          status: "review",
-          confidence: result.confidence ?? {
-            score: 0,
-            reason:
-              "The search tool did not provide usable results.",
-          },
+          status: DecisionStatus.REVIEW,
+          confidence,
           reason:
             "News search did not return usable results.",
         },
@@ -122,8 +128,10 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
       newestPublishedAt,
     );
 
-    const confidenceScore =
-      result.confidence?.score ?? 1;
+    const toolConfidence = normalizeConfidence(
+      result.confidence,
+      "No search confidence metadata was provided.",
+    );
 
     const providerNames = [
       ...new Set(
@@ -155,10 +163,22 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
         ? 1
         : 0.5 + (freshness.score ?? 0) * 0.5;
 
-    const combinedConfidence =
-      confidenceScore *
-      aggregateReliability *
-      freshnessMultiplier;
+    const combinedConfidence = normalizeConfidence(
+      {
+        score:
+          toolConfidence.score *
+          aggregateReliability *
+          freshnessMultiplier,
+        reason:
+          `Average provider reliability (${aggregateReliability}) ` +
+          `and news freshness (${freshness.score ?? 0}) ` +
+          "adjusted the search confidence.",
+      },
+      "News confidence could not be calculated.",
+    );
+
+    const decisionStatus =
+      decisionStatusForConfidence(combinedConfidence);
 
     return {
       success: true,
@@ -166,19 +186,10 @@ export class NewsAgent implements Agent<NewsInput, NewsOutput> {
         results: rankedResults,
       },
       decision: {
-        status:
-          combinedConfidence >= 0.5
-            ? "accept"
-            : "review",
-        confidence: {
-          score: combinedConfidence,
-          reason:
-            `Average provider reliability (${aggregateReliability}) ` +
-            `and news freshness (${freshness.score ?? 0}) ` +
-            "adjusted the search confidence.",
-        },
+        status: decisionStatus,
+        confidence: combinedConfidence,
         reason:
-          combinedConfidence >= 0.5
+          decisionStatus === DecisionStatus.ACCEPT
             ? "News search completed with acceptable reliability and freshness."
             : "News search requires review due to reliability or freshness.",
       },

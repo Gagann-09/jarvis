@@ -1,5 +1,10 @@
 import type { Agent, AgentResult } from "../../types/agent.js";
 import type { AgentContext } from "../../types/agent-context.js";
+import {
+  DecisionStatus,
+  decisionStatusForConfidence,
+  normalizeConfidence,
+} from "../../types/decision.js";
 import type {
   CareerOpportunity,
   CareerSearchInput,
@@ -46,19 +51,27 @@ export class CareerAgent
     );
 
     if (!result.success || result.data === undefined) {
+      const confidence = normalizeConfidence(
+        result.confidence,
+        "Career capability returned no usable results.",
+      );
+
       return {
         success: false,
         decision: {
-          status: "review",
-          confidence: result.confidence ?? {
-            score: 0,
-            reason: "Career capability returned no usable results.",
-          },
+          status: DecisionStatus.REVIEW,
+          confidence,
           reason: "Career search did not return usable opportunities.",
         },
         error: result.error ?? "Career search failed.",
       };
     }
+
+    const confidence = normalizeConfidence(
+      result.confidence,
+      "No confidence metadata was provided.",
+    );
+    const decisionStatus = decisionStatusForConfidence(confidence);
 
     return {
       success: true,
@@ -66,12 +79,12 @@ export class CareerAgent
         opportunities: result.data,
       },
       decision: {
-        status: "accept",
-        confidence: result.confidence ?? {
-          score: 0,
-          reason: "No confidence metadata was provided.",
-        },
-        reason: "Career search completed successfully.",
+        status: decisionStatus,
+        confidence,
+        reason:
+          decisionStatus === DecisionStatus.ACCEPT
+            ? "Career search completed successfully."
+            : "Career search requires review due to confidence.",
       },
     };
   }

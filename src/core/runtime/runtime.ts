@@ -8,6 +8,7 @@ import { searchCapability } from "../../tools/web/search.capability.js";
 import type { PermissionLevel } from "../../types/permissions.js";
 import type { Runtime } from "../../types/runtime.js";
 import { OrchestratorService } from "../orchestrator/orchestrator.service.js";
+import { InMemoryMemory } from "../../services/memory/in-memory.memory.js";
 
 export const createRuntime = (): Runtime => {
   const orchestrator = new OrchestratorService();
@@ -16,11 +17,15 @@ export const createRuntime = (): Runtime => {
   orchestrator.registerAgent(new CareerAgent());
   orchestrator.registerAgent(new EventsAgent());
 
-  const createContext = (
+  const memory = new InMemoryMemory();
+
+  const createContext = async (
     requestId: string,
     permission: PermissionLevel = "read",
-  ) =>
-    new AgentContextService({
+  ) => {
+    const relevantMemory = await memory.retrieve({});
+
+    return new AgentContextService({
       requestId,
       permission,
       capabilities: {
@@ -28,7 +33,9 @@ export const createRuntime = (): Runtime => {
         career: careerCapability,
         events: eventsCapability,
       },
+      relevantMemory,
     });
+  };
 
   return {
     orchestrator,

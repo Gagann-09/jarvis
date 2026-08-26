@@ -1,8 +1,20 @@
 import type { Request, Response } from "express";
 import { createRuntime } from "../core/runtime/runtime.js";
+import type { OrchestratorResult } from "../types/orchestrator.js";
 import { AgentRequestSchema } from "./agent.schema.js";
 
 const runtime = createRuntime();
+
+export interface AgentHttpResponse {
+  readonly success: boolean;
+  readonly agentName?: string;
+  readonly result?: OrchestratorResult["result"];
+  readonly error?: string;
+  readonly details?: readonly unknown[];
+}
+
+const createRequestId = (): string =>
+  `http-${Date.now()}-${crypto.randomUUID()}`;
 
 export const executeAgent = async (
   req: Request,
@@ -23,13 +35,13 @@ export const executeAgent = async (
     res.status(400).json({
       success: false,
       error: "agentName is required.",
-    });
+    } satisfies AgentHttpResponse);
+
     return;
   }
 
   const agentName = body.agentName;
   const rawInput = body.input ?? {};
-  let input: unknown = rawInput;
 
   if (
     agentName === "news" ||
@@ -46,29 +58,57 @@ export const executeAgent = async (
         success: false,
         error: "Invalid agent request.",
         details: parsed.error.issues,
-      });
+      } satisfies AgentHttpResponse);
+
       return;
     }
 
-    input = parsed.data.input;
+    try {
+      const result = await runtime.orchestrator.execute(
+        parsed.data,
+        runtime.createContext(createRequestId()),
+      );
+
+      if (result.success) {
+        res.status(200).json(result satisfies OrchestratorResult);
+        return;
+      }
+
+      if (result.result === null) {
+        res.status(404).json(result satisfies OrchestratorResult);
+        return;
+      }
+
+      res.status(502).json(result satisfies OrchestratorResult);
+    } catch {
+      res.status(500).json({
+        success: false,
+        error: "Agent execution failed.",
+      } satisfies AgentHttpResponse);
+    }
+
+    return;
   }
 
   try {
     const result = await runtime.orchestrator.execute(
       {
         agentName,
-        input,
+        input: rawInput,
       },
-      runtime.createContext(
-        `http-${Date.now()}-${crypto.randomUUID()}`,
-      ),
+      runtime.createContext(createRequestId()),
     );
 
-    res.status(result.success ? 200 : 404).json(result);
+    if (result.success) {
+      res.status(200).json(result satisfies OrchestratorResult);
+      return;
+    }
+
+    res.status(404).json(result satisfies OrchestratorResult);
   } catch {
     res.status(500).json({
       success: false,
       error: "Agent execution failed.",
-    });
+    } satisfies AgentHttpResponse);
   }
 };

@@ -5,6 +5,9 @@ import type {
   SearchResult,
 } from "../../src/tools/web/search.schema.js";
 import { createRuntime } from "../../src/core/runtime/runtime.js";
+import { AgentContextService } from "../../src/services/agents/agent-context.service.js";
+import { careerCapability } from "../../src/tools/web/career.capability.js";
+import { eventsCapability } from "../../src/tools/web/events.capability.js";
 
 const mockSearchCapability: ToolCapability<
   SearchInput,
@@ -42,9 +45,15 @@ describe("Runtime composition", () => {
   it("registers all three read-only agents", async () => {
     const runtime = createRuntime();
 
-    const context = runtime.createContext("runtime-test-001");
-
-    context.capabilities.search = mockSearchCapability;
+    const context = new AgentContextService({
+      requestId: "runtime-test-001",
+      permission: "read",
+      capabilities: {
+        search: mockSearchCapability,
+        career: careerCapability,
+        events: eventsCapability,
+      },
+    });
 
     const news = await runtime.orchestrator.execute(
       {

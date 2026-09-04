@@ -338,4 +338,295 @@ describe("Orchestrator contract", () => {
     expect(resObj.decision.confidence.extraConfidenceProp).toBe("preserved");
     expect(resObj.source.extraSourceProp).toBe("preserved");
   });
+
+  describe("executePlan", () => {
+    it("executes a single successful step", async () => {
+      const orchestrator = new OrchestratorService();
+      orchestrator.registerAgent(new CareerAgent());
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-1",
+        requestId: "req-1",
+        createdAt: new Date().toISOString(),
+        steps: [
+          {
+            stepId: "step-1",
+            agentName: "career",
+            input: { query: "AI ML internship", location: "Bangalore", remote: false },
+            requiredPermission: "read",
+            dependsOn: [],
+            description: "Find jobs",
+          }
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-1"));
+
+      expect(result.success).toBe(true);
+      expect(result.planId).toBe("plan-1");
+      expect(result.stepResults).toHaveLength(1);
+      expect(result.stepResults[0].status).toBe("success");
+      expect(result.stepResults[0].agentName).toBe("career");
+    });
+
+    it("executes multiple independent successful steps in deterministic order", async () => {
+      const orchestrator = new OrchestratorService();
+      const executionOrder: string[] = [];
+      const createAgent = (name: string) => ({
+        definition: { name, description: "Test agent" },
+        execute: async () => {
+          executionOrder.push(name);
+          return { success: true, data: {}, decision: { status: "accept", confidence: { score: 1 }, reason: "" } };
+        }
+      } as Agent<unknown, unknown>);
+
+      orchestrator.registerAgent(createAgent("agentA"));
+      orchestrator.registerAgent(createAgent("agentB"));
+
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-2",
+        requestId: "req-2",
+        createdAt: new Date().toISOString(),
+        steps: [
+          {
+            stepId: "step-A",
+            agentName: "agentA",
+            input: {},
+            requiredPermission: "read",
+            dependsOn: [],
+            description: "Step A",
+          },
+          {
+            stepId: "step-B",
+            agentName: "agentB",
+            input: {},
+            requiredPermission: "read",
+            dependsOn: [],
+            description: "Step B",
+          }
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-2"));
+      expect(result.success).toBe(true);
+      expect(executionOrder).toEqual(["agentA", "agentB"]);
+    });
+
+    it("respects dependency ordering", async () => {
+      const orchestrator = new OrchestratorService();
+      const executionOrder: string[] = [];
+      const createAgent = (name: string) => ({
+        definition: { name, description: "Test agent" },
+        execute: async () => {
+          executionOrder.push(name);
+          return { success: true, data: {}, decision: { status: "accept", confidence: { score: 1 }, reason: "" } };
+        }
+      } as Agent<unknown, unknown>);
+
+      orchestrator.registerAgent(createAgent("agentA"));
+      orchestrator.registerAgent(createAgent("agentB"));
+
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-3",
+        requestId: "req-3",
+        createdAt: new Date().toISOString(),
+        steps: [
+          {
+            stepId: "step-B",
+            agentName: "agentB",
+            input: {},
+            requiredPermission: "read",
+            dependsOn: ["step-A"],
+            description: "Step B",
+          },
+          {
+            stepId: "step-A",
+            agentName: "agentA",
+            input: {},
+            requiredPermission: "read",
+            dependsOn: [],
+            description: "Step A",
+          }
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-3"));
+      expect(result.success).toBe(true);
+      expect(executionOrder).toEqual(["agentA", "agentB"]);
+      expect(result.stepResults[0].stepId).toBe("step-A");
+      expect(result.stepResults[1].stepId).toBe("step-B");
+    });
+
+    it("skips dependent steps if dependency fails", async () => {
+      const orchestrator = new OrchestratorService();
+      const createAgent = (name: string, success: boolean) => ({
+        definition: { name, description: "Test agent" },
+        execute: async () => {
+          if (!success) {
+             return { success: false, error: "Failed", decision: { status: "reject", confidence: { score: 1 }, reason: "" } };
+          }
+          return { success: true, data: {}, decision: { status: "accept", confidence: { score: 1 }, reason: "" } };
+        }
+      } as Agent<unknown, unknown>);
+
+      orchestrator.registerAgent(createAgent("failAgent", false));
+      orchestrator.registerAgent(createAgent("successAgent", true));
+
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-4",
+        requestId: "req-4",
+        createdAt: new Date().toISOString(),
+        steps: [
+          {
+            stepId: "step-A",
+            agentName: "failAgent",
+            input: {},
+            requiredPermission: "read",
+            dependsOn: [],
+            description: "Step A",
+          },
+          {
+            stepId: "step-B",
+            agentName: "successAgent",
+            input: {},
+            requiredPermission: "read",
+            dependsOn: ["step-A"],
+            description: "Step B",
+          }
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-4"));
+      expect(result.success).toBe(false);
+      expect(result.stepResults[0].status).toBe("failed");
+      expect(result.stepResults[1].status).toBe("skipped");
+      expect(result.stepResults[1].error).toBe("Dependency failed.");
+    });
+
+    it("skips downstream steps if intermediate dependency is skipped", async () => {
+      const orchestrator = new OrchestratorService();
+      const createAgent = (name: string, success: boolean) => ({
+        definition: { name, description: "Test agent" },
+        execute: async () => {
+          if (!success) {
+             return { success: false, error: "Failed", decision: { status: "reject", confidence: { score: 1 }, reason: "" } };
+          }
+          return { success: true, data: {}, decision: { status: "accept", confidence: { score: 1 }, reason: "" } };
+        }
+      } as Agent<unknown, unknown>);
+
+      orchestrator.registerAgent(createAgent("failAgent", false));
+      orchestrator.registerAgent(createAgent("successAgent", true));
+
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-5",
+        requestId: "req-5",
+        createdAt: new Date().toISOString(),
+        steps: [
+          { stepId: "step-A", agentName: "failAgent", input: {}, requiredPermission: "read", dependsOn: [], description: "" },
+          { stepId: "step-B", agentName: "successAgent", input: {}, requiredPermission: "read", dependsOn: ["step-A"], description: "" },
+          { stepId: "step-C", agentName: "successAgent", input: {}, requiredPermission: "read", dependsOn: ["step-B"], description: "" }
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-5"));
+      expect(result.success).toBe(false);
+      expect(result.stepResults[0].status).toBe("failed");
+      expect(result.stepResults[1].status).toBe("skipped");
+      expect(result.stepResults[1].error).toBe("Dependency failed.");
+      expect(result.stepResults[2].status).toBe("skipped");
+      expect(result.stepResults[2].error).toBe("Dependency skipped.");
+    });
+
+    it("continues independent branch after another branch fails", async () => {
+      const orchestrator = new OrchestratorService();
+      let cExecuted = false;
+      const createAgent = (name: string, success: boolean) => ({
+        definition: { name, description: "Test agent" },
+        execute: async () => {
+          if (name === "agentC") cExecuted = true;
+          if (!success) {
+             return { success: false, error: "Failed", decision: { status: "reject", confidence: { score: 1 }, reason: "" } };
+          }
+          return { success: true, data: {}, decision: { status: "accept", confidence: { score: 1 }, reason: "" } };
+        }
+      } as Agent<unknown, unknown>);
+
+      orchestrator.registerAgent(createAgent("failAgent", false));
+      orchestrator.registerAgent(createAgent("agentC", true));
+
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-6",
+        requestId: "req-6",
+        createdAt: new Date().toISOString(),
+        steps: [
+          { stepId: "step-A", agentName: "failAgent", input: {}, requiredPermission: "read", dependsOn: [], description: "" },
+          { stepId: "step-B", agentName: "agentC", input: {}, requiredPermission: "read", dependsOn: ["step-A"], description: "" },
+          { stepId: "step-C", agentName: "agentC", input: {}, requiredPermission: "read", dependsOn: [], description: "" }
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-6"));
+      expect(result.success).toBe(false);
+      expect(cExecuted).toBe(true);
+      const stepC = result.stepResults.find(s => s.stepId === "step-C");
+      expect(stepC?.status).toBe("success");
+    });
+
+    it("fails step with insufficient permission", async () => {
+      const orchestrator = new OrchestratorService();
+      orchestrator.registerAgent({
+        definition: { name: "test", description: "" },
+        execute: async () => ({ success: true, data: {}, decision: { status: "accept", confidence: { score: 1 }, reason: "" } })
+      } as Agent<unknown, unknown>);
+
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-7",
+        requestId: "req-7",
+        createdAt: new Date().toISOString(),
+        steps: [
+          { stepId: "step-A", agentName: "test", input: {}, requiredPermission: "execute", dependsOn: [], description: "" },
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-7")); // Context has 'read'
+      expect(result.success).toBe(false);
+      expect(result.stepResults[0].status).toBe("failed");
+      expect(result.stepResults[0].error).toBe("Insufficient permission.");
+    });
+
+    it("handles unknown runtime agent gracefully", async () => {
+      const orchestrator = new OrchestratorService();
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-8",
+        requestId: "req-8",
+        createdAt: new Date().toISOString(),
+        steps: [
+          { stepId: "step-A", agentName: "unknownAgent", input: {}, requiredPermission: "read", dependsOn: [], description: "" },
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-8"));
+      expect(result.success).toBe(false);
+      expect(result.stepResults[0].status).toBe("failed");
+      expect(result.stepResults[0].error).toBe("Agent not found.");
+    });
+
+    it("detects and rejects cycles safely", async () => {
+      const orchestrator = new OrchestratorService();
+      const plan: import("../../src/types/planner.js").ExecutionPlan = {
+        planId: "plan-cycle",
+        requestId: "req-cycle",
+        createdAt: new Date().toISOString(),
+        steps: [
+          { stepId: "step-A", agentName: "test", input: {}, requiredPermission: "read", dependsOn: ["step-B"], description: "" },
+          { stepId: "step-B", agentName: "test", input: {}, requiredPermission: "read", dependsOn: ["step-A"], description: "" },
+        ]
+      };
+
+      const result = await orchestrator.executePlan(plan, createContext("test-cycle"));
+      expect(result.success).toBe(false);
+      expect(result.stepResults[0].status).toBe("failed");
+      expect(result.stepResults[0].error).toMatch(/cycle/i);
+    });
+  });
 });
